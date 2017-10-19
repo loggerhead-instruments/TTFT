@@ -1,3 +1,5 @@
+#define FIFO_WATERMARK (0x80) // 0x80 = 128
+
 int lis2Address = 0x1D; // (SA0 to +) 7-bit address 0x1D 0011101b ; 8-bit address 0x3A
                         // (SA0 to -) 7-bit address 0x1E 0011110b; 8-bit address 0x3C
 
@@ -35,15 +37,19 @@ int lis2Address = 0x1D; // (SA0 to +) 7-bit address 0x1D 0011101b ; 8-bit addres
 
 void lis2Init(){
 
+  // reset
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_CTRL2);
+  Wire.write(0x40);
+  Wire.endTransmission();
+
+  delay(100);
+
   // CTRL 1
   // ODR[3:0]
   // FS[1:0]  full-scale selection. 00 +/-2g; 01 +/-16g; 10 +/-4g; 11 +/- 8g
   // HF_ODR: High-frequency ODR mode enable; default = 0
   // BDU: Block data update. default=0; 0: continuous; 1: output registers not updated until MSB and LSB read)
-
-
-
-
 
   // 1600Hz: 01011010 (0x5A)
   // 200Hz:  01011000 (0x58)
@@ -57,9 +63,22 @@ void lis2Init(){
 
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_CTRL1);
-  Wire.write(0x5A);
+  Wire.write(0x58);
   Wire.endTransmission();
 
+  // Set FIFO watermark
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_FIFO_THS);  //FIFO threshold
+  Wire.write(FIFO_WATERMARK); // 0x80 = 128
+  Wire.endTransmission();
+
+  // FIFO threshold interrupt is routed to INT1
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_CTRL4);
+  Wire.write(0x02);
+  Wire.endTransmission();
+
+  
   // Continuous FIFO 11001000 0xC8 (module result to FIFO)
   // Continuous FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
   // FIFO mode 00100000 0x20 (X,Y,Z to FIFO) 
@@ -68,23 +87,12 @@ void lis2Init(){
   // Module_to_FIFO: 1 (module routine result is sent to FIFO instead of X,Y,Z)
   // RESVD: 00
   // IF_CS_PU_DIS: 0
-  //writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
+  //  writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
   
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_FIFO_CTRL);
-  Wire.write(0x20);
+  Wire.write(0xC0);
   Wire.endTransmission();
-
- Wire.beginTransmission(lis2Address);
-  Wire.write(LIS_FIFO_THS);  //FIFO threshold
-  Wire.write(0x80); // 0x80 = 128
-  Wire.endTransmission();
-  
-//  Wire.beginTransmission(lis2Address);
-//  Wire.write(LIS_CTRL4);
-//  Wire.write(0x01);
-//  Wire.endTransmission();
-  
 }
 
 int lis2TestResponse(){
@@ -107,7 +115,7 @@ int lis2TestResponse(){
   return response;
 }
 
-void lis2FifoRead(){
+void lis2FifoRead(int bytesAvail){
 //  byte val[6];
 //  int i;
 //  i2c_start(lis2Address);
@@ -124,19 +132,23 @@ void lis2FifoRead(){
 //    accelZ = val[i+5]<<8 | val[i+4];
 //  }
 
-  byte val[6];
+  byte val[32];
   int i;
-  Wire.beginTransmission(lis2Address);
-  Wire.write(LIS_OUT_X);
-  Wire.endTransmission();
-  Wire.requestFrom(lis2Address, 6);
-  while(Wire.available()){
-    val[i] = Wire.read();
-    i++;
-  }
-
-  if(i!=6) digitalWrite(LED_RED, HIGH);
-  if(i==6) digitalWrite(LED_RED, LOW);
+  int nDownloads = int(bytesAvail/32);
+  //Serial.println(nDownloads);
+  for(int x = 0; x>nDownloads; x++){
+    Wire.beginTransmission(lis2Address);
+    Wire.write(LIS_OUT_X);
+    Wire.endTransmission();
+    int bytesAvail = Wire.requestFrom(lis2Address, 32);
+    for(i=0; i<bytesAvail; i++){
+      val[i] = Wire.read();
+      i++;
+    }
+//  
+//    if(i!=32) digitalWrite(LED_RED, HIGH);
+//    if(i==32) digitalWrite(LED_RED, LOW);
+    }
 
   accelX = ((int) val[1]<<8) | val[0];
   accelY = ((int) val[3]<<8) | val[2];
@@ -162,6 +174,16 @@ int lis2FifoPts(){
   val2 = Wire.read();
 
   return (val2);
+}
+
+int lis2FifoStatus(){
+  byte val1;
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_STATUS);
+  Wire.endTransmission();
+  Wire.requestFrom(lis2Address, 1); 
+  val1 = Wire.read();
+  return(val1 & 0x80); // return 0 if less than threshold
 }
 
 //void writeI2C(int devAddress, int registerAddress, int value){

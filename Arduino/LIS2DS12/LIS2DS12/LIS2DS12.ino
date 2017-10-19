@@ -1,6 +1,13 @@
 // test ST accelerometer with OpenTag
 // I2C interface
 
+// - setup 2 MHz SPI read of LIS2 -- 5x faster than I2C
+// - setup watermark
+// - write data to sd card and benchmark
+// - sleep mode and watermark to wake
+// - change to use magnitude and benchmark
+
+
 #include <SPI.h>
 #include <SdFat.h>
 #include <Wire.h>
@@ -37,6 +44,7 @@ void setup() {
   digitalWrite(SD_POW, HIGH); 
 
   Wire.begin();
+  Wire.setClock(400000);
 
 //  byte I2C_check = i2c_init();
 //  if(I2C_check == false){
@@ -59,13 +67,21 @@ void setup() {
 
 
 void loop() {
-  lis2FifoRead();
-  Serial.print(accelX); Serial.print("\t");
-  Serial.print(accelY); Serial.print("\t");
-  Serial.println(accelZ);
-  delay(100);
+  long startTime;
+  
+  //if(curPts > 256) digitalWrite(LED_RED, HIGH);
+ 
+ if(lis2FifoStatus()>0){
+   lis2FifoRead(32);
+    Serial.print(accelX); Serial.print("\t");
+    Serial.print(accelY); Serial.print("\t");
+    Serial.println(accelZ);
+ }
 
-  Serial.println(lis2FifoPts());
+
+//    Serial.println(millis()-startTime);
+
+
 }
 
 void flashRed(){
