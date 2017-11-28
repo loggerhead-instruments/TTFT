@@ -1,0 +1,24 @@
+MPU9250
+Have to use either 1000 Hz (too low) or 4000 Hz with all 3 accelerometer axes with FIFO.
+No watermark
+
+Results: Can't keep up with downloading over I2C
+
+LIS2DS12
+Has magnitude mode
+256-level FIFO
+14-bit
+1600, 3200, 6400 Hz
+If using magnitude mode, still only get 256 samples because I think it uses 3 per time slot.
+watermark
+Operates at a lower voltage than microSD card
+150 uA at 1.8V
+
+KX126-1063
+2048-byte buffer
+8 or 16-bit resolution (683 sets at low res; 342 sets at high res)
+1600, 3200, 6400, 12800, 25600 data rates
+watermark
+145 uA at 2.5V
+Confusing: Spec sheet says "Additional data can not be written to the buffer while data is being read from the buffer using auto-increment mode."
+But, bullet points say can read buffer while it is being written to
