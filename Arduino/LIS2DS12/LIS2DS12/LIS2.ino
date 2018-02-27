@@ -42,7 +42,7 @@ void lis2Init(){
   // reset
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_CTRL2);
-  Wire.write(0x40);
+  Wire.write(0x40); // soft reset
   Wire.endTransmission();
 
   delay(100);
@@ -56,8 +56,9 @@ void lis2Init(){
   //         ODR  FS HF_ODR BDU
   // 1600Hz: 0101 10 1      0 (0x5A)
   // 800Hz:  0111 10 0      0 (0x78) 800 Hz, +/-4g, high frequency ODR disabled, block data update off
-  // 800Hz:  0111 00 0      0 (0x70) 800 Hz, +/-4g, ODR disabled, block data off
+  // 800Hz:  0111 00 0      0 (0x70) 800 Hz, +/-2g, ODR disabled, block data off
   // 200Hz:  0101 10 0      0 (0x58)
+  // 50 Hz:  0011 10 0      0 (0x38) 50 Hz, +/- 4g, ODR disabled, block data off
   // FS: 00 (=/-2g); 10 (+/- 4g); 01 (+/-16g); 11 (+/-8g)
   // HF_ODR: 1
   // BDU: 0
@@ -66,14 +67,18 @@ void lis2Init(){
 
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_CTRL1);
-  Wire.write(0x70);
+  Wire.write(0x5A);
   Wire.endTransmission();
+
+  delay(10);
 
   // Set FIFO watermark
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_FIFO_THS);  //FIFO threshold
-  Wire.write(FIFO_WATERMARK); // 0x80 = 128
+  Wire.write(FIFO_WATERMARK); // note that if using module to store magnitude, watermark of 1 corresponds to 3 values
   Wire.endTransmission();
+
+  delay(10);
 
   // FIFO threshold interrupt is routed to INT1
   Wire.beginTransmission(lis2Address);
@@ -81,18 +86,27 @@ void lis2Init(){
   Wire.write(0x02);
   Wire.endTransmission();
 
-
+  delay(10);
   
   // Turn Module ON to calculate acceleration magnitude
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_FUNC_CTRL);
-  Wire.write(0x20); //0x20 Module On; 0x00 Module Off
+  Wire.write(0x20); //0x20 Module On
   Wire.endTransmission();
+
+  delay(10);
   
   // Bypass mode 00001000 0x08 // bypass mode with magnitude module on
+  // FIFO in bypass mode, module on
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_FIFO_CTRL);
+  Wire.write(0x08);
+  Wire.endTransmission();
+
+  delay(10);
+  
   // Continuous mode FIFO 11001000 0xC8 (module result to FIFO)
   // Continuous mode FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
-  // FIFO mode 00100000 0x20 (X,Y,Z to FIFO) 
 
   // Continuous mode: 110
   // Int2_Step_count_Ov: 0
@@ -100,19 +114,10 @@ void lis2Init(){
   // RESVD: 00
   // IF_CS_PU_DIS: 0
   //  writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
-
-  // FIFO in bypass mode, module on
-  Wire.beginTransmission(lis2Address);
-  Wire.write(LIS_FIFO_CTRL);
-  Wire.write(0x08);
-  Wire.endTransmission();
-  
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_FIFO_CTRL);
   Wire.write(0xC8);
   Wire.endTransmission();
-
-
 }
 
 int lis2TestResponse(){
@@ -159,18 +164,14 @@ the reading address may be automatically incremented by the device by setting th
 IF_ADD_INC bit of CTRL2 register to ‘1’; the device rolls back to 0x28 when register 0x2D
 is reached
 */
-  int i=0;
   digitalWrite(LED_RED, HIGH);
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_OUT_X);
-  Wire.endTransmission();
+  Wire.endTransmission(false);
   int bytesAvail = Wire.requestFrom(lis2Address, bytesToRead, false);
   for(int j=0; j<bytesAvail; j++){
-    accel[i] = Wire.read();
-    i++;
+    accel[j] = Wire.read();
   }
-  Wire.endTransmission(true);
-  
   digitalWrite(LED_RED, LOW); 
 }
 

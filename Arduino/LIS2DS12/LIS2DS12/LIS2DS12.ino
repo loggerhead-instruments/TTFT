@@ -21,6 +21,8 @@
 //
 //#include <SoftI2CMaster.h>
 
+boolean saveData = 1;  // set to 1 to save data to microSD; for debugging
+
 // pin assignments
 #define chipSelect 10
 #define LED_GRN A3
@@ -29,7 +31,7 @@
 #define VHFPOW 9
 #define BUTTON1 A2
 
-int accel[36];
+volatile int accel[32];
 
 // SD file system
 SdFat sd;
@@ -63,17 +65,17 @@ void setup() {
       flashRed();
     }
   }
-  
-  Serial.println("Init microSD");
-  // see if the card is present and can be initialized:
-  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    Serial.println("Card failed");
-    digitalWrite(LED_RED, HIGH);
-    delay(200);
-    digitalWrite(LED_RED, LOW);
-    delay(100);
+
+  if(saveData){
+      Serial.println("Init microSD");
+    // see if the card is present and can be initialized:
+    while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+      Serial.println("Card failed");
+      flashRed();
+    }
+    fileInit();
   }
-  fileInit();
+
   
   Serial.println(testResponse); 
   lis2Init();
@@ -81,14 +83,18 @@ void setup() {
 
 int count = 0;
 void loop() {
- while(count < 1000){
+ while(count < 5000){
    if(lis2FifoStatus()>0){
     count++;
-    lis2FifoRead(36);
-    dataFile.write(&accel[0] , 36);
+    lis2FifoRead(24);  //bytes to read (Wire library has max of 32)
+    if(saveData) {
+      for (int i=0; i<24; i+=2){
+        dataFile.println((int) accel[i+1]<<8 | accel[i]);
+      }
+    }
    }
  }
- dataFile.close();
+ if (saveData) dataFile.close();
  Serial.println("Done.");
  while(1);
 }
@@ -102,7 +108,7 @@ void flashRed(){
 
 void fileInit(){
   char filename[12];
-  sprintf(filename,"test.16");  //filename is DDHHMM
+  sprintf(filename,"test.csv");  //filename is DDHHMM
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_APPEND);
 }
 
