@@ -1,4 +1,4 @@
-#define FIFO_WATERMARK (0x80) // 0x80 = 128
+#define FIFO_WATERMARK (0x24) // 0x24=36; 0x80 = 128
 
 int lis2Address = 0x1D; // (SA0 to +) 7-bit address 0x1D 0011101b ; 8-bit address 0x3A
                         // (SA0 to -) 7-bit address 0x1E 0011110b; 8-bit address 0x3C
@@ -78,21 +78,38 @@ void lis2Init(){
   Wire.write(0x02);
   Wire.endTransmission();
 
+
   
-  // Continuous FIFO 11001000 0xC8 (module result to FIFO)
-  // Continuous FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
+  // Turn Module ON to calculate acceleration magnitude
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_FUNC_CTRL);
+  Wire.write(0x20); //0x20 Module On; 0x00 Module Off
+  Wire.endTransmission();
+  
+  // Bypass mode 00001000 0x08 // bypass mode with magnitude module on
+  // Continuous mode FIFO 11001000 0xC8 (module result to FIFO)
+  // Continuous mode FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
   // FIFO mode 00100000 0x20 (X,Y,Z to FIFO) 
+
   // Continuous mode: 110
   // Int2_Step_count_Ov: 0
   // Module_to_FIFO: 1 (module routine result is sent to FIFO instead of X,Y,Z)
   // RESVD: 00
   // IF_CS_PU_DIS: 0
   //  writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
+
+  // FIFO in bypass mode, module on
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_FIFO_CTRL);
+  Wire.write(0x08);
+  Wire.endTransmission();
   
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_FIFO_CTRL);
-  Wire.write(0xC0);
+  Wire.write(0xC8);
   Wire.endTransmission();
+
+
 }
 
 int lis2TestResponse(){
@@ -132,27 +149,23 @@ void lis2FifoRead(int bytesAvail){
 //    accelZ = val[i+5]<<8 | val[i+4];
 //  }
 
-  byte val[32];
+  byte val[36];
   int i;
-  int nDownloads = int(bytesAvail/32);
-  //Serial.println(nDownloads);
-  for(int x = 0; x>nDownloads; x++){
+  int nDownloads = int(bytesAvail/6);
+  digitalWrite(LED_RED, HIGH);
+  for(int x = 0; x<nDownloads; x++){
     Wire.beginTransmission(lis2Address);
     Wire.write(LIS_OUT_X);
     Wire.endTransmission();
-    int bytesAvail = Wire.requestFrom(lis2Address, 32);
+    int bytesAvail = Wire.requestFrom(lis2Address, 6);
     for(i=0; i<bytesAvail; i++){
       val[i] = Wire.read();
       i++;
     }
-//  
-//    if(i!=32) digitalWrite(LED_RED, HIGH);
-//    if(i==32) digitalWrite(LED_RED, LOW);
-    }
-
-  accelX = ((int) val[1]<<8) | val[0];
-  accelY = ((int) val[3]<<8) | val[2];
-  accelZ = ((int) val[5]<<8) | val[4];
+  }
+  digitalWrite(LED_RED, LOW);
+  accel = ((int) val[1]<<8) | val[0];
+  Serial.println(accel); 
 }
 
 int lis2FifoPts(){

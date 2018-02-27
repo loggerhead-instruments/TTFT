@@ -23,14 +23,13 @@
 
 // pin assignments
 #define chipSelect 10
-#define LED_GRN 4
-#define LED_RED A3
+#define LED_GRN A3
+#define LED_RED 4
 #define BURN 8
 #define VHFPOW 9
 #define BUTTON1 A2
-#define SD_POW 5
 
-int accelX, accelY, accelZ;
+int accel;
 
 void setup() {
   Serial.begin(115200);
@@ -40,8 +39,6 @@ void setup() {
   pinMode(LED_RED, OUTPUT);
   digitalWrite(LED_RED,LOW);
   digitalWrite(LED_GRN,HIGH);
-  pinMode(SD_POW, OUTPUT);      
-  digitalWrite(SD_POW, HIGH); 
 
   Wire.begin();
   Wire.setClock(400000);
@@ -67,21 +64,9 @@ void setup() {
 
 
 void loop() {
-  long startTime;
-  
-  //if(curPts > 256) digitalWrite(LED_RED, HIGH);
- 
  if(lis2FifoStatus()>0){
-   lis2FifoRead(32);
-    Serial.print(accelX); Serial.print("\t");
-    Serial.print(accelY); Serial.print("\t");
-    Serial.println(accelZ);
+   lis2FifoRead(36);
  }
-
-
-//    Serial.println(millis()-startTime);
-
-
 }
 
 void flashRed(){
