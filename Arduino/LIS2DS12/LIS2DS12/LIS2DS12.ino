@@ -29,10 +29,15 @@
 #define VHFPOW 9
 #define BUTTON1 A2
 
-int accel;
+int accel[36];
+
+// SD file system
+SdFat sd;
+File dataFile;
 
 void setup() {
   Serial.begin(115200);
+  delay(4000);
   Serial.println("LIS2DS12");
 
   pinMode(LED_GRN, OUTPUT);
@@ -58,15 +63,34 @@ void setup() {
       flashRed();
     }
   }
-  Serial.println(testResponse);
+  
+  Serial.println("Init microSD");
+  // see if the card is present and can be initialized:
+  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    Serial.println("Card failed");
+    digitalWrite(LED_RED, HIGH);
+    delay(200);
+    digitalWrite(LED_RED, LOW);
+    delay(100);
+  }
+  fileInit();
+  
+  Serial.println(testResponse); 
   lis2Init();
 }
 
-
+int count = 0;
 void loop() {
- if(lis2FifoStatus()>0){
-   lis2FifoRead(36);
+ while(count < 1000){
+   if(lis2FifoStatus()>0){
+    count++;
+    lis2FifoRead(36);
+    dataFile.write(&accel[0] , 36);
+   }
  }
+ dataFile.close();
+ Serial.println("Done.");
+ while(1);
 }
 
 void flashRed(){
@@ -76,5 +100,10 @@ void flashRed(){
    delay(500);
 }
 
+void fileInit(){
+  char filename[12];
+  sprintf(filename,"test.16");  //filename is DDHHMM
+  dataFile = sd.open(filename, O_WRITE | O_CREAT | O_APPEND);
+}
 
 

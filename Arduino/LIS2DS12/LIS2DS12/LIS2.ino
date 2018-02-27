@@ -1,4 +1,6 @@
-#define FIFO_WATERMARK (0x24) // 0x24=36; 0x80 = 128
+
+// when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
+#define FIFO_WATERMARK (0x0C) // 0x0C=12 0x24=36; 0x80 = 128
 
 int lis2Address = 0x1D; // (SA0 to +) 7-bit address 0x1D 0011101b ; 8-bit address 0x3A
                         // (SA0 to -) 7-bit address 0x1E 0011110b; 8-bit address 0x3C
@@ -51,19 +53,20 @@ void lis2Init(){
   // HF_ODR: High-frequency ODR mode enable; default = 0
   // BDU: Block data update. default=0; 0: continuous; 1: output registers not updated until MSB and LSB read)
 
-  // 1600Hz: 01011010 (0x5A)
-  // 200Hz:  01011000 (0x58)
-  // ODR: 0101
-  // FS: 10 (+/- 4g)
+  //         ODR  FS HF_ODR BDU
+  // 1600Hz: 0101 10 1      0 (0x5A)
+  // 800Hz:  0111 10 0      0 (0x78) 800 Hz, +/-4g, high frequency ODR disabled, block data update off
+  // 800Hz:  0111 00 0      0 (0x70) 800 Hz, +/-4g, ODR disabled, block data off
+  // 200Hz:  0101 10 0      0 (0x58)
+  // FS: 00 (=/-2g); 10 (+/- 4g); 01 (+/-16g); 11 (+/-8g)
   // HF_ODR: 1
   // BDU: 0
   //writeI2C(lis2Address, LIS_CTRL1, 0x58);
-
   //writeI2C(lis2Address, LIS_CTRL4, 0x01); 
 
   Wire.beginTransmission(lis2Address);
   Wire.write(LIS_CTRL1);
-  Wire.write(0x58);
+  Wire.write(0x70);
   Wire.endTransmission();
 
   // Set FIFO watermark
@@ -132,7 +135,7 @@ int lis2TestResponse(){
   return response;
 }
 
-void lis2FifoRead(int bytesAvail){
+void lis2FifoRead(int bytesToRead){
 //  byte val[6];
 //  int i;
 //  i2c_start(lis2Address);
@@ -149,25 +152,29 @@ void lis2FifoRead(int bytesAvail){
 //    accelZ = val[i+5]<<8 | val[i+4];
 //  }
 
-  byte val[36];
-  int i;
-  int nDownloads = int(bytesAvail/6);
+
+/* It is recommended to read all FIFO slots in a multiple byte reading of 1536 bytes (6 output
+registers by 256 slots). In order to minimize communication between the master and slave
+the reading address may be automatically incremented by the device by setting the
+IF_ADD_INC bit of CTRL2 register to ‘1’; the device rolls back to 0x28 when register 0x2D
+is reached
+*/
+  int i=0;
   digitalWrite(LED_RED, HIGH);
-  for(int x = 0; x<nDownloads; x++){
-    Wire.beginTransmission(lis2Address);
-    Wire.write(LIS_OUT_X);
-    Wire.endTransmission();
-    int bytesAvail = Wire.requestFrom(lis2Address, 6);
-    for(i=0; i<bytesAvail; i++){
-      val[i] = Wire.read();
-      i++;
-    }
+  Wire.beginTransmission(lis2Address);
+  Wire.write(LIS_OUT_X);
+  Wire.endTransmission();
+  int bytesAvail = Wire.requestFrom(lis2Address, bytesToRead, false);
+  for(int j=0; j<bytesAvail; j++){
+    accel[i] = Wire.read();
+    i++;
   }
-  digitalWrite(LED_RED, LOW);
-  accel = ((int) val[1]<<8) | val[0];
-  Serial.println(accel); 
+  Wire.endTransmission(true);
+  
+  digitalWrite(LED_RED, LOW); 
 }
 
+// note that when storing module (magnitude) nsamples is 3x value returned
 int lis2FifoPts(){
 //  byte val1, val2;
 //  i2c_start(lis2Address);
