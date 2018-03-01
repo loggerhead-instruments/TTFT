@@ -1,5 +1,5 @@
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
-#define FIFO_WATERMARK (0x24) // 0x0C=12 0x24=36; 0x80 = 128
+#define FIFO_WATERMARK (0x80) // 0x0C=12 0x24=36; 0x80 = 128
 
 const byte SPI_READ = 0x80;
 const byte SPI_WRITE = 0x00;

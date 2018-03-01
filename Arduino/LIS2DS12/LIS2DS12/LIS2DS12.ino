@@ -33,7 +33,9 @@ boolean saveData = 0;  // set to 1 to save data to microSD; for debugging
 #define SPICLOCK 13      //sck
 #define chipSelectPin 3 //Hall pin
 
-volatile int accel[32];
+#define bufLength 128
+
+volatile int accel[bufLength];
 
 // SD file system
 SdFat sd;
@@ -99,10 +101,10 @@ void loop() {
   while (count < 5000) {
     if (lis2SpiFifoStatus() > 0) {
       count++;
-      lis2SpiFifoRead(24);  //bytes to read (Wire library has max of 32)
+      lis2SpiFifoRead(bufLength);  //bytes to read (Wire library has max of 32)
       Serial.println((int) accel[1]<<8 | accel[0]);
       if (saveData) {
-        for (int i = 0; i < 24; i += 2) {
+        for (int i = 0; i < bufLength; i += 2) {
           dataFile.println((int) accel[i + 1] << 8 | accel[i]);
         }
       }
