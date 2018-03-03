@@ -6,3 +6,5 @@
 Altium/Project Outputs for TTFT/Design Rule Check - TTFT.drc
 Altium/Project Outputs for TTFT/Design Rule Check - TTFT.html
 *.PrjPCBStructure
+*.drc
+*.html
