@@ -19,11 +19,17 @@ File dataFile;
 
 void setup() {
   pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
+  digitalWrite(LED, HIGH);
   pinMode(shifterEnable, OUTPUT);
   digitalWrite(shifterEnable, HIGH);
 
   delay(500);
+
+  // initialize microSD
+  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    flashLed(50);
+  }
+  fileInit();
   
   // initalize the  data ready and chip select pins:
   pinMode(chipSelectPinAccel, OUTPUT);
@@ -42,17 +48,33 @@ void setup() {
     }
   }
 
-  // initialize microSD
-  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    flashLed(50);
-  }
-  fileInit();
+
+  lis2SpiInit();
+  
+  digitalWrite(LED, LOW);
+  
   
 }
 
+int count = 0;
 void loop() {
-  digitalWrite(LED, HIGH);
-  while(1);
+while (count < 5000) {
+    if (lis2SpiFifoStatus() > 0) {
+      digitalWrite(LED, HIGH);
+      count++;
+      lis2SpiFifoRead(bufLength);  //bytes to read
+      Serial.println((int) accel[1]<<8 | accel[0]);
+      for (int i = 0; i < bufLength; i += 2) {
+        dataFile.println((int) accel[i + 1] << 8 | accel[i]);
+      } 
+      digitalWrite(LED, LOW);
+    }
+  }
+  dataFile.close();
+  Serial.println("Done.");
+  digitalWrite(LED, LOW);
+  while (1);
+  
 }
 
 void flashLed(int interval) {
