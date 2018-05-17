@@ -41,6 +41,9 @@ void lis2SpiInit(){
   writeRegister(LIS_CTRL2, 0x40); // soft reset
   delay(100);
 
+  // CTRL2
+//  writeRegister(LIS_CTRL2, 0x04); // 0x04 IF_ADD_INC = 1 (autoincrement address for FIFO read); 0x00 IF_ADD_INC = 0
+  
   // CTRL 1
   // ODR[3:0]
   // FS[1:0]  full-scale selection. 00 +/-2g; 01 +/-16g; 10 +/-4g; 11 +/- 8g
@@ -91,7 +94,7 @@ void lis2SpiInit(){
 
 int lis2SpiTestResponse(){
   byte response;
-  response = readRegister(LIS_WHO_AM_I, 1);
+  response = readRegister(LIS_WHO_AM_I);
   return response;
 }
 
@@ -100,28 +103,36 @@ void lis2SpiFifoRead(int bytesToRead){
 registers by 256 slots). In order to minimize communication between the master and slave
 the reading address may be automatically incremented by the device by setting the
 IF_ADD_INC bit of CTRL2 register to ‘1’; the device rolls back to 0x28 when register 0x2D
-is reached
+is reached. This is the default setting for CTRL2
 */
-  digitalWrite(LED, HIGH);
-  readRegister(LIS_OUT_X, bytesToRead);
-  digitalWrite(LED, LOW); 
+
+  unsigned int result = 0;   // result to return
+  byte dataToSend = LIS_OUT_X | SPI_READ;
+  // take the chip select low to select the device:
+  digitalWrite(chipSelectPinAccel, LOW);
+  // send the device the register you want to read:
+  SPI.transfer(dataToSend);
+  for(int j=0; j<bytesToRead; j++) {
+    accel[j] = SPI.transfer(0x00);
+  }
+  digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }
 
 // note that when storing module (magnitude) nsamples is 3x value returned
 int lis2SpiFifoPts(){
   byte val;
-  val = readRegister(LIS_FIFO_SAMPLES, 1); // note ignoring that upper part stored in FIFO_SRC
+  val = readRegister(LIS_FIFO_SAMPLES); // note ignoring that upper part stored in FIFO_SRC
   return (val);
 }
 
 int lis2SpiFifoStatus(){
   byte val1;
-  val1 = readRegister(LIS_STATUS, 1);
+  val1 = readRegister(LIS_STATUS);
   return(val1 & 0x80); // return 0 if less than threshold
 }
 
 //Read from or write to register from the SCP1000:
-unsigned int readRegister(byte thisRegister, int bytesToRead) {
+unsigned int readRegister(byte thisRegister) {
   byte inByte = 0;           // incoming byte from the SPI
   unsigned int result = 0;   // result to return
   byte dataToSend = thisRegister | SPI_READ;
@@ -131,17 +142,6 @@ unsigned int readRegister(byte thisRegister, int bytesToRead) {
   SPI.transfer(dataToSend);
   // send a value of 0 to read the first byte returned:
   result = SPI.transfer(0x00);
-  accel[0] = result;
-  // decrement the number of bytes left to read:
-  bytesToRead--;
-  // if you still have another byte to read:
-  int j = 0;
-  if (bytesToRead > 0) {
-    j++;
-    accel[j] = SPI.transfer(0x00);
-    // decrement the number of bytes left to read:
-    bytesToRead--;
-  }
   // take the chip select high to de-select:
   digitalWrite(chipSelectPinAccel, HIGH);
   // return the result:
@@ -163,3 +163,32 @@ void writeRegister(byte thisRegister, byte thisValue) {
   // take the chip select high to de-select:
   digitalWrite(chipSelectPinAccel, HIGH);
 }
+
+int16_t readRawAccelX(void){
+  int16_t output;
+  readRegisterInt16( &output, LIS_OUT_X );
+  return output;
+}
+
+int16_t readRawAccelY(void){
+  int16_t output;
+  readRegisterInt16( &output, LIS_OUT_Y );
+  return output;
+}
+
+int16_t readRawAccelZ(void){
+  int16_t output;
+  readRegisterInt16( &output, LIS_OUT_Z );
+  return output;
+}
+
+int16_t readRegisterInt16(int16_t* outputPointer, uint8_t offset){
+  int16_t returnError;
+    //offset |= 0x80; //turn auto-increment bit on
+    uint8_t myBuffer[2];
+    myBuffer[0] = readRegister(offset);
+    myBuffer[1] = readRegister(offset + 1);
+    int16_t output = (int16_t)myBuffer[0] | int16_t(myBuffer[1] << 8);
+    *outputPointer = output;
+    return returnError;
+ }

@@ -11,13 +11,14 @@
 
 #define bufLength 128
 
-volatile int accel[bufLength];
+volatile uint8_t accel[bufLength];
 
 // SD file system
 SdFat sd;
 File dataFile;
 
 void setup() {
+  Serial.begin(115200);
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
   pinMode(shifterEnable, OUTPUT);
@@ -58,21 +59,29 @@ void setup() {
 
 int count = 0;
 void loop() {
-while (count < 5000) {
-    if (lis2SpiFifoStatus() > 0) {
+while (count < 30000) {
+    count++;
+    int nsamples = lis2SpiFifoPts();
+    //if (lis2SpiFifoStatus() == 1) {  //1 when watermark
+    if(nsamples > bufLength){
+      Serial.print("n:"); Serial.println(nsamples);
       digitalWrite(LED, HIGH);
-      count++;
       lis2SpiFifoRead(bufLength);  //bytes to read
-      Serial.println((int) accel[1]<<8 | accel[0]);
+      Serial.print("v:");Serial.println((int) accel[1]<<8 | accel[0]);
       for (int i = 0; i < bufLength; i += 2) {
+//        dataFile.println(readRegister(readRawAccelX));
+//        dataFile.println(readRegister(readRawAccelY));
+//        dataFile.println(readRegister(readRawAccelZ));
         dataFile.println((int) accel[i + 1] << 8 | accel[i]);
       } 
       digitalWrite(LED, LOW);
     }
+    delay(1);
   }
   dataFile.close();
   Serial.println("Done.");
-  digitalWrite(LED, LOW);
+  digitalWrite(LED, HIGH);
+  delay(1000);
   while (1);
   
 }
