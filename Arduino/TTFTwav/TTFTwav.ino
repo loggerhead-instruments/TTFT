@@ -1,5 +1,7 @@
 #include <SPI.h>
 #include <SdFat.h>
+#include <avr/sleep.h>
+#include <avr/power.h>
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -42,9 +44,18 @@ typedef struct hdrstruct {
 
 HdrStruct wav_hdr;
 
+// defines for setting and clearing register bits
+#ifndef cbi
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
+#endif
+#ifndef sbi
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+#endif
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
+
+  cbi(ADCSRA,ADEN);  // switch Analog to Digitalconverter OFF
   
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
@@ -83,24 +94,13 @@ volatile int bufsRec = 0;
 
 void loop() {
   while (bufsRec < bufsPerFile) {
-//    int nsamples = lis2SpiFifoPts() * 3;
-//    while(nsamples > bufLength){
-//      bufsRec++;
-//      Serial.print("n:"); Serial.println(nsamples);
-//      Serial.print("status:"); Serial.println(lis2SpiFifoStatus());
-//     // digitalWrite(LED, HIGH);
-//      lis2SpiFifoRead(bufLength);  //bytes to read
-//     // Serial.print("v:");Serial.println((int) accel[1]<<8 | accel[0]);
-//      dataFile.write(&accel, bufLength);
-//      digitalWrite(LED, LOW);
-//      nsamples = lis2SpiFifoPts() * 3;
-//    }
-//    delay(1);
+     system_sleep();
+     processBuf();
   }
   bufsRec = 0;
   detachInterrupt(digitalPinToInterrupt(INT0));
   dataFile.close();
-  Serial.println("Done.");
+  //Serial.println("Done.");
   digitalWrite(LED, HIGH);
   delay(1000);
   while (1);
@@ -143,6 +143,10 @@ void fileInit() {
 }
 
 void watermark(){
+  // do nothing just wake up
+}
+
+void processBuf(){
   bufsRec++;
   digitalWrite(LED, HIGH);
   
@@ -152,3 +156,18 @@ void watermark(){
   digitalWrite(LED, LOW);
 }
 
+//****************************************************************  
+// set system into the sleep state 
+// system wakes up when interrupt detected
+void system_sleep() {
+  // make all pin inputs and enable pullups to reduce power
+
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
+  sleep_enable();
+  power_all_disable();
+  sleep_mode();  // go to sleep
+  // ...sleeping here....  
+  sleep_disable();
+  power_all_enable();
+  
+}
