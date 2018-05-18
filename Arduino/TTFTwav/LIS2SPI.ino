@@ -51,6 +51,8 @@ void lis2SpiInit(){
   // BDU: Block data update. default=0; 0: continuous; 1: output registers not updated until MSB and LSB read)
 
   //         ODR  FS HF_ODR BDU
+  // 6400Hz: 0111 10 1      0 (0x7A)
+  // 3200Hz: 0110 10 1      0 (0x6A)
   // 1600Hz: 0101 10 1      0 (0x5A)
   // 800Hz:  0111 10 0      0 (0x78) 800 Hz, +/-4g, high frequency ODR disabled, block data update off
   // 800Hz:  0111 00 0      0 (0x70) 800 Hz, +/-2g, ODR disabled, block data off

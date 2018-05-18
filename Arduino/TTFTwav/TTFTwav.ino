@@ -42,8 +42,6 @@ HdrStruct wav_hdr;
 
 void setup() {
   Serial.begin(115200);
-  Serial.print("Header size:");
-  Serial.println(sizeof(wav_hdr));
   
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
