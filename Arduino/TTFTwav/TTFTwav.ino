@@ -26,6 +26,8 @@ unsigned int fileCount = 0;
 uint32_t bufsPerFile = 100;
 uint32_t wavBufLength = bufLength;
 
+volatile boolean introPeriod = 1;
+
 typedef struct hdrstruct {
     char    rId[4];
     uint32_t rLen;
@@ -97,11 +99,10 @@ void loop() {
      system_sleep();
      processBuf();
   }
-  digitalWrite(LED, HIGH);
+  introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
   fileInit();
-  digitalWrite(LED, LOW);
 }
 
 void flashLed(int interval) {
@@ -145,9 +146,11 @@ void watermark(){
 }
 
 void processBuf(){
+  if(introPeriod) digitalWrite(LED, HIGH);
   bufsRec++;
   lis2SpiFifoRead(bufLength);  //bytes to read
   dataFile.write(&accel, bufLength);
+  digitalWrite(LED, LOW);
 }
 
 //****************************************************************  
