@@ -48,7 +48,7 @@ void lis2SpiInit(){
   delay(100);
 
   // CTRL2
-//  writeRegister(LIS_CTRL2, 0x04); // 0x04 IF_ADD_INC = 1 (autoincrement address for FIFO read); 0x00 IF_ADD_INC = 0
+  writeRegister(LIS_CTRL2, 0x0C); // high-pass filter, auto-increment register
   
   // CTRL 1
   // ODR[3:0]
