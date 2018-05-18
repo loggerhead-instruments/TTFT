@@ -70,7 +70,7 @@ void lis2SpiInit(){
   // HF_ODR: 1
   // BDU: 0
 
-  writeRegister(LIS_CTRL1, 0x5E);
+  writeRegister(LIS_CTRL1, 0x5A);
   delay(10);
 
   // Set FIFO watermark

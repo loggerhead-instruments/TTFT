@@ -21,7 +21,7 @@ int16_t accel[bufLength];
 SdFat sd;
 File dataFile;
 
-uint32_t srate = 1600;
+uint32_t srate = 800;
 unsigned int fileCount = 0;
 uint32_t bufsPerFile = 100;
 uint32_t wavBufLength = bufLength;
