@@ -11,8 +11,8 @@
 #define INT1 3
 
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
-#define FIFO_WATERMARK (0x80) // 0x0C=12 0x24=36; 0x80 = 128
-#define bufLength 384 // should be 3x watermark
+#define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x80 = 128
+#define bufLength 768 // bytes: 3x watermark x2 bytes/sample
 uint8_t accel[bufLength];
 
 // SD file system
