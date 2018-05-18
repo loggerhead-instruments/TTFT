@@ -7,9 +7,10 @@
 #define DATAIN 12       //MISO
 #define SPICLOCK 13      //sck
 #define chipSelectPinAccel 9  
-#define shifterEnable 14
+#define INT0 2
+#define INT1 3
 
-#define bufLength 128
+#define bufLength 108 // should be 3x watermark
 uint8_t accel[bufLength];
 
 // SD file system
@@ -45,8 +46,7 @@ void setup() {
   
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
-  pinMode(shifterEnable, OUTPUT);
-  digitalWrite(shifterEnable, HIGH);
+  pinMode(INT0, INPUT);
 
   delay(500);
 
@@ -70,25 +70,30 @@ void setup() {
   if (testResponse != 67) {
       flashLed(500);
   }
+
+  attachInterrupt(digitalPinToInterrupt(INT0), watermark, RISING);
   lis2SpiInit();
+  
+  digitalWrite(LED, HIGH);
 }
 
 int bufsRec = 0;
 
 void loop() {
   while (bufsRec < bufsPerFile) {
-    int nsamples = lis2SpiFifoPts();
-    //if (lis2SpiFifoStatus() == 1) {  //1 when watermark
-    if(nsamples > bufLength){
-      bufsRec++;
-     // Serial.print("n:"); Serial.println(nsamples);
-      digitalWrite(LED, HIGH);
-      lis2SpiFifoRead(bufLength);  //bytes to read
-     // Serial.print("v:");Serial.println((int) accel[1]<<8 | accel[0]);
-      dataFile.write(&accel, bufLength);
-      digitalWrite(LED, LOW);
-    }
-    delay(1);
+//    int nsamples = lis2SpiFifoPts() * 3;
+//    while(nsamples > bufLength){
+//      bufsRec++;
+//      Serial.print("n:"); Serial.println(nsamples);
+//      Serial.print("status:"); Serial.println(lis2SpiFifoStatus());
+//     // digitalWrite(LED, HIGH);
+//      lis2SpiFifoRead(bufLength);  //bytes to read
+//     // Serial.print("v:");Serial.println((int) accel[1]<<8 | accel[0]);
+//      dataFile.write(&accel, bufLength);
+//      digitalWrite(LED, LOW);
+//      nsamples = lis2SpiFifoPts() * 3;
+//    }
+//    delay(1);
   }
   bufsRec = 0;
   dataFile.close();
@@ -96,7 +101,6 @@ void loop() {
   digitalWrite(LED, HIGH);
   delay(1000);
   while (1);
-  
 }
 
 void flashLed(int interval) {
@@ -133,11 +137,15 @@ void fileInit() {
   wav_hdr.dLen = bufsPerFile * wavBufLength; // number of bytes in data
   wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
   dataFile.write((uint8_t *)&wav_hdr, 44);
-
-  Serial.print("BPS:");
-  Serial.println(wav_hdr.nAvgBytesPerSec);
-  Serial.print("R:");
-  Serial.println(wav_hdr.rLen);
-  Serial.print("D:");
-  Serial.println(wav_hdr.dLen);
 }
+
+void watermark(){
+//  bufsRec++;
+  digitalWrite(LED, HIGH);
+  
+  lis2SpiFifoRead(bufLength);  //bytes to read
+  dataFile.write(&accel, bufLength);
+
+  digitalWrite(LED, LOW);
+}
+

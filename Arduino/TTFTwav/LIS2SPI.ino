@@ -1,5 +1,5 @@
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
-#define FIFO_WATERMARK (0x80) // 0x0C=12 0x24=36; 0x80 = 128
+#define FIFO_WATERMARK (0x24) // 0x0C=12 0x24=36; 0x80 = 128
 
 const byte SPI_READ = 0x80;
 const byte SPI_WRITE = 0x00;
@@ -62,7 +62,7 @@ void lis2SpiInit(){
   // HF_ODR: 1
   // BDU: 0
 
-  writeRegister(LIS_CTRL1, 0x5A);
+  writeRegister(LIS_CTRL1, 0x58);
   delay(10);
 
   // Set FIFO watermark
@@ -120,17 +120,19 @@ is reached. This is the default setting for CTRL2
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }
 
-// note that when storing module (magnitude) nsamples is 3x value returned
-int lis2SpiFifoPts(){
-  byte val;
-  val = readRegister(LIS_FIFO_SAMPLES); // note ignoring that upper part stored in FIFO_SRC
-  return (val);
-}
+
 
 int lis2SpiFifoStatus(){
   byte val1;
   val1 = readRegister(LIS_STATUS);
-  return(val1 & 0x80); // return 0 if less than threshold
+  return(val1 & 0x80 > 0); // return 0 if less than threshold
+}
+
+// note that when storing module (magnitude) nsamples is 3x value returned
+int lis2SpiFifoPts(){
+  int samples;
+  samples = (readRegister(LIS_FIFO_SRC) & 0x01)<<8 | readRegister(LIS_FIFO_SAMPLES);
+  return(samples);
 }
 
 //Read from or write to register from the SCP1000:
