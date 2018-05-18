@@ -87,11 +87,11 @@ void setup() {
   }
 
 //  // double-tap to start
-//  digitalWrite(LED, LOW);
-//  lis2SpiDt(); // setup for double tap
-//  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, RISING);
-//  system_sleep();
-//  detachInterrupt(digitalPinToInterrupt(INT0));
+  digitalWrite(LED, LOW);
+  lis2SpiDt(); // setup for double tap
+  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, RISING);
+  system_sleep();
+  detachInterrupt(digitalPinToInterrupt(INT0));
 
   attachInterrupt(digitalPinToInterrupt(INT1), watermark, RISING);
   lis2SpiInit();
