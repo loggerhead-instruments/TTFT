@@ -48,7 +48,7 @@ void lis2SpiInit(){
   delay(100);
 
   // CTRL2
-  writeRegister(LIS_CTRL2, 0x0C); // high-pass filter, auto-increment register
+  //writeRegister(LIS_CTRL2, 0x0C); // high-pass filter, auto-increment register
   
   // CTRL 1
   // ODR[3:0]
@@ -82,13 +82,13 @@ void lis2SpiInit(){
   delay(10);
   
   // Turn Module ON to calculate acceleration magnitude
-  writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
-  delay(10);
+  //writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
+  //delay(10);
   
   // Bypass mode 00001000 0x08 // bypass mode with magnitude module on
   // FIFO in bypass mode, module on
-  writeRegister(LIS_FIFO_CTRL, 0x08);
-  delay(10);
+  // writeRegister(LIS_FIFO_CTRL, 0x08);
+  // delay(10);
   
   // Continuous mode FIFO 11001000 0xC8 (module result to FIFO)
   // Continuous mode FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
@@ -99,7 +99,7 @@ void lis2SpiInit(){
   // RESVD: 00
   // IF_CS_PU_DIS: 0
   //  writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
-  writeRegister(LIS_FIFO_CTRL, 0xC8);
+  writeRegister(LIS_FIFO_CTRL, 0xC0);
 }
 
 int lis2SpiTestResponse(){
