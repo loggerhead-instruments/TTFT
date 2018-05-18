@@ -108,7 +108,7 @@ int lis2SpiTestResponse(){
   return response;
 }
 
-void lis2SpiFifoRead(int bytesToRead){
+void lis2SpiFifoRead(int samplesToRead){
 /* It is recommended to read all FIFO slots in a multiple byte reading of 1536 bytes (6 output
 registers by 256 slots). In order to minimize communication between the master and slave
 the reading address may be automatically incremented by the device by setting the
@@ -122,8 +122,14 @@ is reached. This is the default setting for CTRL2
   digitalWrite(chipSelectPinAccel, LOW);
   // send the device the register you want to read:
   SPI.transfer(dataToSend);
-  for(int j=0; j<bytesToRead; j++) {
-    accel[j] = SPI.transfer(0x00);
+  byte temp1, temp2;
+
+  // data are stored in the 14-bit 2’s complement left-justified representation, 
+  // which means that they always have to be right-shifted by two.
+  for(int j=0; j<samplesToRead; j++) {
+    temp1 = SPI.transfer(0x00);
+    temp2 = SPI.transfer(0x00);
+    accel[j] = (temp2 << 8 | temp1) >>2;
   }
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }

@@ -14,8 +14,8 @@
 
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
 #define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x80 = 128
-#define bufLength 768 // bytes: 3x watermark x2 bytes/sample
-uint8_t accel[bufLength];
+#define bufLength 384 // samples: 3x watermark
+int16_t accel[bufLength];
 
 // SD file system
 SdFat sd;
@@ -141,7 +141,7 @@ void fileInit() {
   wav_hdr.nBlockAlign=2;
   wav_hdr.nBitsPerSamples=16;
   sprintf(wav_hdr.dId,"data");
-  wav_hdr.dLen = bufsPerFile * wavBufLength; // number of bytes in data
+  wav_hdr.dLen = bufsPerFile * wavBufLength * 2; // number of bytes in data
   wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
   dataFile.write((uint8_t *)&wav_hdr, 44);
 }
@@ -157,8 +157,8 @@ void watermark(){
 void processBuf(){
   if(introPeriod) digitalWrite(LED, HIGH);
   bufsRec++;
-  lis2SpiFifoRead(bufLength);  //bytes to read
-  dataFile.write(&accel, bufLength);
+  lis2SpiFifoRead(bufLength);  //samples to read
+  dataFile.write(&accel, bufLength*2);
   digitalWrite(LED, LOW);
 }
 
