@@ -57,12 +57,12 @@ HdrStruct wav_hdr;
 void setup() {
   //Serial.begin(115200);
 
-  cbi(ADCSRA,ADEN);  // switch Analog to Digitalconverter OFF
+  cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
   
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
   pinMode(INT0, INPUT);
-
+  pinMode(INT1, INPUT);
   delay(500);
 
   // initialize microSD
@@ -86,10 +86,15 @@ void setup() {
       flashLed(500);
   }
 
-  attachInterrupt(digitalPinToInterrupt(INT0), watermark, RISING);
+//  // double-tap to start
+//  digitalWrite(LED, LOW);
+//  lis2SpiDt(); // setup for double tap
+//  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, RISING);
+//  system_sleep();
+//  detachInterrupt(digitalPinToInterrupt(INT0));
+
+  attachInterrupt(digitalPinToInterrupt(INT1), watermark, RISING);
   lis2SpiInit();
-  
-  digitalWrite(LED, LOW);
 }
 
 volatile int bufsRec = 0;
@@ -139,6 +144,10 @@ void fileInit() {
   wav_hdr.dLen = bufsPerFile * wavBufLength; // number of bytes in data
   wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
   dataFile.write((uint8_t *)&wav_hdr, 44);
+}
+
+void doubleTap(){
+  // do nothing just wake up
 }
 
 void watermark(){

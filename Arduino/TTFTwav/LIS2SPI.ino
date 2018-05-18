@@ -34,7 +34,10 @@ const byte SPI_WRITE = 0x00;
 #define LIS_FUNC_SRC (0x3E)
 #define LIS_FUNC_CTRL (0x3F)
 
-
+void lis2SpiDt(){
+  writeRegister(LIS_CTRL3, 0x08); // Tap Z enable
+  writeRegister(LIS_CTRL4, 0x08); // double-tap interrupt 1
+}
 void lis2SpiInit(){
   // reset
   writeRegister(LIS_CTRL2, 0x40); // soft reset
@@ -70,8 +73,8 @@ void lis2SpiInit(){
   writeRegister(LIS_FIFO_THS, FIFO_WATERMARK);
   delay(10);
 
-  // FIFO threshold interrupt is routed to INT1
-  writeRegister(LIS_CTRL4, 0x02);
+  // FIFO threshold interrupt is routed to INT2
+  writeRegister(LIS_CTRL5, 0x02);
   delay(10);
   
   // Turn Module ON to calculate acceleration magnitude
