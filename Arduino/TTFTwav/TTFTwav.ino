@@ -98,12 +98,8 @@ void loop() {
      processBuf();
   }
   bufsRec = 0;
-  detachInterrupt(digitalPinToInterrupt(INT0));
   dataFile.close();
-  //Serial.println("Done.");
-  digitalWrite(LED, HIGH);
-  delay(1000);
-  while (1);
+  fileInit();
 }
 
 void flashLed(int interval) {
