@@ -10,7 +10,9 @@
 #define INT0 2
 #define INT1 3
 
-#define bufLength 108 // should be 3x watermark
+// when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
+#define FIFO_WATERMARK (0x80) // 0x0C=12 0x24=36; 0x80 = 128
+#define bufLength 384 // should be 3x watermark
 uint8_t accel[bufLength];
 
 // SD file system
@@ -77,7 +79,7 @@ void setup() {
   digitalWrite(LED, HIGH);
 }
 
-int bufsRec = 0;
+volatile int bufsRec = 0;
 
 void loop() {
   while (bufsRec < bufsPerFile) {
@@ -96,6 +98,7 @@ void loop() {
 //    delay(1);
   }
   bufsRec = 0;
+  detachInterrupt(digitalPinToInterrupt(INT0));
   dataFile.close();
   Serial.println("Done.");
   digitalWrite(LED, HIGH);
@@ -140,7 +143,7 @@ void fileInit() {
 }
 
 void watermark(){
-//  bufsRec++;
+  bufsRec++;
   digitalWrite(LED, HIGH);
   
   lis2SpiFifoRead(bufLength);  //bytes to read
