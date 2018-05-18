@@ -87,7 +87,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INT0), watermark, RISING);
   lis2SpiInit();
   
-  digitalWrite(LED, HIGH);
+  digitalWrite(LED, LOW);
 }
 
 volatile int bufsRec = 0;
@@ -97,9 +97,11 @@ void loop() {
      system_sleep();
      processBuf();
   }
+  digitalWrite(LED, HIGH);
   bufsRec = 0;
   dataFile.close();
   fileInit();
+  digitalWrite(LED, LOW);
 }
 
 void flashLed(int interval) {
@@ -144,12 +146,8 @@ void watermark(){
 
 void processBuf(){
   bufsRec++;
-  digitalWrite(LED, HIGH);
-  
   lis2SpiFifoRead(bufLength);  //bytes to read
   dataFile.write(&accel, bufLength);
-
-  digitalWrite(LED, LOW);
 }
 
 //****************************************************************  
