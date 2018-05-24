@@ -23,7 +23,7 @@ File dataFile;
 
 uint32_t srate = 1600;
 unsigned int fileCount = 0;
-uint32_t bufsPerFile = 300;
+uint32_t bufsPerFile = 500;
 uint32_t wavBufLength = bufLength;
 
 volatile boolean introPeriod = 1;
@@ -39,7 +39,7 @@ typedef struct hdrstruct {
     uint32_t nSamplesPerSec;
     uint32_t nAvgBytesPerSec;
     uint16_t nBlockAlign;
-    uint16_t  nBitsPerSamples;
+    uint16_t  nBitsPerSample;
     char    dId[4];
     uint32_t  dLen;
 } HdrStruct;
@@ -133,13 +133,13 @@ void fileInit() {
   sprintf(wav_hdr.rId,"RIFF");
   sprintf(wav_hdr.wId,"WAVE");
   sprintf(wav_hdr.fId,"fmt ");
-  wav_hdr.fLen=0x10;
-  wav_hdr.nFormatTag=1;
-  wav_hdr.nChannels=1;
-  wav_hdr.nSamplesPerSec=srate;
-  wav_hdr.nAvgBytesPerSec=srate*2;
-  wav_hdr.nBlockAlign=2;
-  wav_hdr.nBitsPerSamples=16;
+  wav_hdr.fLen = 0x10;
+  wav_hdr.nFormatTag = 1;
+  wav_hdr.nChannels = 3;
+  wav_hdr.nSamplesPerSec = srate;
+  wav_hdr.nAvgBytesPerSec = srate * 6;
+  wav_hdr.nBlockAlign = 6;
+  wav_hdr.nBitsPerSample = 16;
   sprintf(wav_hdr.dId,"data");
   wav_hdr.dLen = bufsPerFile * wavBufLength * 2; // number of bytes in data
   wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
