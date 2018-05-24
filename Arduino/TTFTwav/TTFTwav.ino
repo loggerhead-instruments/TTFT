@@ -23,7 +23,7 @@ File dataFile;
 
 uint32_t srate = 1600;
 unsigned int fileCount = 0;
-uint32_t bufsPerFile = 500;
+uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
 uint32_t wavBufLength = bufLength;
 
 volatile boolean introPeriod = 1;
