@@ -65,11 +65,10 @@ void setup() {
   pinMode(INT1, INPUT);
   delay(500);
 
-  // initialize microSD
+  // initialize and test microSD
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     flashLed(50);
   }
-  fileInit();
   
   // initalize the  data ready and chip select pins:
   pinMode(chipSelectPinAccel, OUTPUT);
@@ -86,13 +85,24 @@ void setup() {
       flashLed(500);
   }
 
-//  // double-tap to start
+  // double-tap to start
   digitalWrite(LED, LOW);
   lis2SpiDt(); // setup for double tap
   attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, RISING);
   system_sleep();
+
+  // 
+  // ASLEEP HERE
+  //
+  
   detachInterrupt(digitalPinToInterrupt(INT0));
 
+  // initialize microSD
+  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    flashLed(50);
+  }
+  fileInit();
+  
   attachInterrupt(digitalPinToInterrupt(INT1), watermark, RISING);
   lis2SpiInit();
 }
