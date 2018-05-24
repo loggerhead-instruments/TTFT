@@ -1,0 +1,17 @@
+Bill of Material for ,,,,,,,
+On 5/22/2018 at 4:47:26 PM,,,,,,,
+,,,,,,,
+Comment,Manufacturer,Part number,DigiKey part number,Pattern,Quantity,Components,
+,,,,,,,
+0.1uF,Any,,,402,1,C3,Ceramic Chip Capacitor - Standard
+1.0uF,Any,,,402,2,"C8, C9",Ceramic Chip Capacitor - Standard
+100nF,Any,,,402,2,"C5, C7",Ceramic Chip Capacitor - Standard
+10k,Any,,,3-0603,1,R1,"Precision Thick Film Chip Resistor, 10 Ohm to 1M Ohm Range, 1% and 0.5% Tolerance, 0603 Size, 0.063 W"
+10uF,Any,,,805,1,C6,Tantalum cap
+330x,Any,,,3-0603,1,R3,"Precision Thick Film Chip Resistor, 10 Ohm to 1M Ohm Range, 1% and 0.5% Tolerance, 0603 Size, 0.063 W"
+ATmega328P-MU,Microchip,ATmega328P-MU,ATMEGA328PB-MU-ND,32M1-A_M,1,U1,8-Bit AVR Microcontroller with 8K Bytes of In-System Programmable Flash Memory
+red LED_0603,Any,,SML-D12V1WT86TR-ND,Diode0603,1,D1,
+Level Shifter,NXP,"NTB0104BQ,115",568-8404-1-ND,DHVQFN14,2,"U3, U5",Voltage level translator
+LIS2DS12,STMicroelectronics,LIS2DS12TR,497-16261-1-ND,LGA-12,1,U2,
+1.8V LDO,Microchip,MCP1700T-1802E/TT,MCP1700T1802ETTTR-ND,SOT-23-TT3_N,1,U4,"Low Quiescent Current LDO, 3-Pin SOT-23, Extended Temperature, Tape and Reel"
+microSD Hirose push-pull,Hirose,DM3D-SF,HR1941DKR-ND,DM3D microSD,1,P4,

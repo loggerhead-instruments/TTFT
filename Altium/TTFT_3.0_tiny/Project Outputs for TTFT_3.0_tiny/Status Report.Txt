@@ -1,0 +1,11 @@
+Output: Simple BOM
+Type  : SimpleBOM
+From  : Variant [[No Variations]] of Project [TTFT_3.0_tiny.PrjPCB]
+   Generated File[TTFT_3.0_tiny.BOM]
+   Generated File[TTFT_3.0_tiny.CSV]
+
+
+Files Generated   : 2
+Documents Printed : 0
+
+Finished Output Generation At 4:47:26 PM On 5/22/2018
