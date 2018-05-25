@@ -111,8 +111,8 @@ volatile int bufsRec = 0;
 
 void loop() {
   while (bufsRec < bufsPerFile) {
-     system_sleep();
      processBuf();
+     if(lis2SpiFifoStatus()==0) system_sleep();
   }
   introPeriod = 0;
   bufsRec = 0;
@@ -120,9 +120,6 @@ void loop() {
   dataFile.close();
   fileInit();
   digitalWrite(LED, LOW);
-  while(lis2SpiFifoPts()>bufLength){
-    processBuf();  //download data
-  }
 }
 
 void flashLed(int interval) {
@@ -170,11 +167,13 @@ void watermark(){
 }
 
 void processBuf(){
-  if(introPeriod) digitalWrite(LED, HIGH);
-  bufsRec++;
-  lis2SpiFifoRead(bufLength);  //samples to read
-  dataFile.write(&accel, bufLength*2);
-  digitalWrite(LED, LOW);
+  while(lis2SpiFifoPts() * 3 > bufLength){
+    if(introPeriod) digitalWrite(LED, HIGH);
+    bufsRec++;
+    lis2SpiFifoRead(bufLength);  //samples to read
+    dataFile.write(&accel, bufLength*2);
+    digitalWrite(LED, LOW);
+  }
 }
 
 //****************************************************************  
