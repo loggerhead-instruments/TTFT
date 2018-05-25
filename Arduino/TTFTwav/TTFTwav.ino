@@ -23,7 +23,7 @@ File dataFile;
 
 uint32_t srate = 1600;
 unsigned int fileCount = 0;
-uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
+uint32_t bufsPerFile = 375; // each buffer is 0.08 seconds; 750 buffers = 1 minute
 uint32_t wavBufLength = bufLength;
 
 volatile boolean introPeriod = 1;
@@ -116,8 +116,13 @@ void loop() {
   }
   introPeriod = 0;
   bufsRec = 0;
+  digitalWrite(LED, HIGH);
   dataFile.close();
   fileInit();
+  digitalWrite(LED, LOW);
+  while(lis2SpiFifoPts()>bufLength){
+    processBuf();  //download data
+  }
 }
 
 void flashLed(int interval) {
