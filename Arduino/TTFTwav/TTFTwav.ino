@@ -1,10 +1,15 @@
 
 // - should we flag overflow? Could store in upper bit of data--or not worry about it, because you don't know how much you miss
+// Issue with magnitude mode is that data is 800 Hz, not 1600 Hz; 3200 Hz results in a triangle wave
 
 #include <SPI.h>
 #include <SdFat.h>
 #include <avr/sleep.h>
 #include <avr/power.h>
+
+// If 3 channel recording defined will store raw 3 axes data
+// Otherwise will store magnitude of 3 channels
+//#define CHAN3 1
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -71,9 +76,15 @@ void setup() {
   sprintf(wav_hdr.fId,"fmt ");
   wav_hdr.fLen = 0x10;
   wav_hdr.nFormatTag = 1;
-  wav_hdr.nChannels = 3;
+  #ifdef CHAN3
+    wav_hdr.nChannels = 3;
+    wav_hdr.nAvgBytesPerSec = srate * 6;
+  #else
+    wav_hdr.nChannels = 1;
+    wav_hdr.nAvgBytesPerSec = srate * 2;
+  #endif
   wav_hdr.nSamplesPerSec = srate;
-  wav_hdr.nAvgBytesPerSec = srate * 6;
+  
   wav_hdr.nBlockAlign = 6;
   wav_hdr.nBitsPerSample = 16;
   sprintf(wav_hdr.dId,"data");

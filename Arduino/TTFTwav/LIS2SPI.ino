@@ -1,4 +1,4 @@
-
+// LIS2DS12 accelerometer
 
 const byte SPI_READ = 0x80;
 const byte SPI_WRITE = 0x00;
@@ -84,15 +84,17 @@ void lis2SpiInit(){
   // FIFO threshold interrupt is routed to INT2
   writeRegister(LIS_CTRL5, 0x02);
   delay(10);
-  
+
+  #ifndef CHAN3
   // Turn Module ON to calculate acceleration magnitude
-  //writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
-  //delay(10);
+  writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
+  delay(10);
   
   // Bypass mode 00001000 0x08 // bypass mode with magnitude module on
   // FIFO in bypass mode, module on
-  // writeRegister(LIS_FIFO_CTRL, 0x08);
-  // delay(10);
+   writeRegister(LIS_FIFO_CTRL, 0x08);
+   delay(10);
+  #endif
   
   // Continuous mode FIFO 11001000 0xC8 (module result to FIFO)
   // Continuous mode FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
@@ -102,7 +104,11 @@ void lis2SpiInit(){
   // Module_to_FIFO: 1 (module routine result is sent to FIFO instead of X,Y,Z)
   // RESVD: 00
   // IF_CS_PU_DIS: 0
+  #ifdef CHAN3
   writeRegister(LIS_FIFO_CTRL, 0xC0);
+  #else
+  writeRegister(LIS_FIFO_CTRL, 0XC8);
+  #endif
 }
 
 int lis2SpiTestResponse(){
