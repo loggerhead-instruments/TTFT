@@ -98,7 +98,6 @@ void lis2SpiInit(){
   // Module_to_FIFO: 1 (module routine result is sent to FIFO instead of X,Y,Z)
   // RESVD: 00
   // IF_CS_PU_DIS: 0
-  //  writeI2C(lis2Address, LIS_FIFO_CTRL, 0xC0);
   writeRegister(LIS_FIFO_CTRL, 0xC0);
 }
 
@@ -133,7 +132,6 @@ is reached. This is the default setting for CTRL2
   }
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }
-
 
 
 int lis2SpiFifoStatus(){
