@@ -1,6 +1,5 @@
 
 // - should we flag overflow? Could store in upper bit of data--or not worry about it, because you don't know how much you miss
-// - Need watchdog timer? Is it possible to miss a FIFO interrupt? If can avoid wdt() can save power.
 
 #include <SPI.h>
 #include <SdFat.h>
@@ -63,7 +62,7 @@ void setup() {
   digitalWrite(LED, HIGH);
   pinMode(INT0, INPUT_PULLUP);
   pinMode(INT1, INPUT_PULLUP);
-  delay(4000);
+  delay(1000);
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
 
   //intialize .wav file header
@@ -132,6 +131,7 @@ void loop() {
      system_sleep();
      // ... ASLEEP HERE...
   }
+  digitalWrite(LED, HIGH);
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
@@ -140,8 +140,7 @@ void loop() {
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-    //if(introPeriod) digitalWrite(LED, HIGH);
-    digitalWrite(LED, HIGH);
+    if(introPeriod) digitalWrite(LED, HIGH);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
