@@ -145,7 +145,7 @@ int lis2SpiFifoStatus(){
 // note that when storing module (magnitude) nsamples is 3x value returned
 int lis2SpiFifoPts(){
   int samples;
-  samples = (readRegister(LIS_FIFO_SRC) & 0x01)<<8 | readRegister(LIS_FIFO_SAMPLES);
+  samples = ((readRegister(LIS_FIFO_SRC) & 0x20)>>5)<<8 | readRegister(LIS_FIFO_SAMPLES);
   return(samples);
 }
 
