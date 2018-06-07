@@ -36,7 +36,7 @@ const byte SPI_WRITE = 0x00;
 
 void lis2SpiDt(){
   writeRegister(LIS_CTRL1, 0x60); // accel on 400 Hz
-  writeRegister(LIS_CTRL3, 0x38); // Tap Z enable
+  writeRegister(LIS_CTRL3, 0x38 | 0x02); // Tap Z enable, active low
   writeRegister(LIS_TAP_6D_THS, 0x0C); // set tap threshold
   writeRegister(LIS_INT_DUR, 0x7F); // set duration, quiet and shock time windows
   writeRegister(LIS_WAKE_UP_THS, 0x80); //double-tap enabled
@@ -75,6 +75,10 @@ void lis2SpiInit(){
 
   // Set FIFO watermark
   writeRegister(LIS_FIFO_THS, FIFO_WATERMARK);
+  delay(10);
+
+  // Interrupt active low
+  writeRegister(LIS_CTRL3, 0x02); // active low, use pull-up on uController
   delay(10);
 
   // FIFO threshold interrupt is routed to INT2
@@ -132,6 +136,7 @@ is reached. This is the default setting for CTRL2
   }
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }
+
 
 
 int lis2SpiFifoStatus(){

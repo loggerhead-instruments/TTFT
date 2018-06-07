@@ -20,7 +20,7 @@
 #define FIFO_WATERMARK (0x128) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
 #define bufLength 384 // samples: 3x watermark
 int16_t accel[bufLength];
-uint32_t bufsPerFile = 100; // each buffer is 0.08 seconds; 750 buffers = 1 minute
+uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
 uint32_t wavBufLength = bufLength;
 
 // SD file system
@@ -61,9 +61,9 @@ void setup() {
   delay(4000);
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
-  pinMode(INT0, INPUT);
-  pinMode(INT1, INPUT);
-  delay(1000);
+  pinMode(INT0, INPUT_PULLUP);
+  pinMode(INT1, INPUT_PULLUP);
+  delay(4000);
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
 
   //intialize .wav file header
@@ -80,9 +80,6 @@ void setup() {
   sprintf(wav_hdr.dId,"data");
   wav_hdr.dLen = bufsPerFile * wavBufLength * 2; // number of bytes in data
   wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
-
-//  pinMode(chipSelect, OUTPUT);  // microSD
-//  pinMode(chipSelect, HIGH);
   
   // initalize the  data ready and chip select pins:
   pinMode(chipSelectPinAccel, OUTPUT);
@@ -104,25 +101,24 @@ void setup() {
       flashLed(2000);
   }
 
-//  // double-tap to start
-//  digitalWrite(LED, LOW);
-//  lis2SpiDt(); // setup for double tap
-//  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, RISING);
-//  system_sleep();
-//
-//  // 
-//  // ASLEEP HERE
-//  //
-//  
-//  detachInterrupt(digitalPinToInterrupt(INT0));
+  // double-tap to start
+  digitalWrite(LED, LOW);
+  lis2SpiDt(); // setup for double tap
+  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
+  system_sleep();
+
+  // 
+  // ASLEEP HERE
+  //
+  
+  detachInterrupt(digitalPinToInterrupt(INT0));
 
   // initialize microSD
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     flashLed(50);
   }
   fileInit();
-  
-  attachInterrupt(digitalPinToInterrupt(INT1), watermark, RISING);
+ 
   lis2SpiInit();
 }
 
@@ -131,21 +127,20 @@ volatile int bufsRec = 0;
 void loop() {
   while (bufsRec < bufsPerFile) {
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
-     if(lis2SpiFifoStatus()==0) system_sleep();
+     //if(lis2SpiFifoStatus()==0) system_sleep();
+     //if(lis2SpiFifoPts() < 128) system_sleep();
+     system_sleep();
      // ... ASLEEP HERE...
   }
- // detachInterrupt(digitalPinToInterrupt(INT1));
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
   fileInit();
- // attachInterrupt(digitalPinToInterrupt(INT1), watermark, RISING);
 }
 
 void processBuf(){
-  
-  //if(introPeriod) digitalWrite(LED, HIGH);
   while((lis2SpiFifoPts() * 3 > bufLength)){
+    //if(introPeriod) digitalWrite(LED, HIGH);
     digitalWrite(LED, HIGH);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
@@ -168,14 +163,11 @@ void fileInit() {
   fileCount += 1;
   sprintf(filename,"F%06d.wav",fileCount); //if can't open just use count
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
-  
   while (!dataFile){
     fileCount += 1;
     sprintf(filename,"F%06d.wav",fileCount); //if can't open just use count
     dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   }
-
-
   dataFile.write((uint8_t *)&wav_hdr, 44);
 }
 
@@ -185,7 +177,7 @@ void doubleTap(){
 
 void watermark(){
   // wake up
-
+  
 }
 
 
@@ -195,12 +187,13 @@ void watermark(){
 // system wakes up when interrupt detected
 void system_sleep() {
   // make all pin inputs and enable pullups to reduce power
-
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
   sleep_enable();
   power_all_disable();
+  attachInterrupt(digitalPinToInterrupt(INT1), watermark, LOW);
   sleep_mode();  // go to sleep
   // ...sleeping here....  
   sleep_disable();
+  detachInterrupt(digitalPinToInterrupt(INT1));
   power_all_enable();
 }
