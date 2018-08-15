@@ -73,8 +73,7 @@ void setup() {
   pinMode(INT0, INPUT_PULLUP);
   pinMode(INT1, INPUT_PULLUP);
   delay(1000);
-  cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
-
+  
   //intialize .wav file header
   sprintf(wav_hdr.rId,"RIFF");
   sprintf(wav_hdr.wId,"WAVE");
@@ -225,6 +224,10 @@ boolean detectSound(){
 // system wakes up when interrupt detected
 void system_sleep() {
   // make all pin inputs and enable pullups to reduce power
+  cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
+  power_timer1_disable();  
+  power_usart0_disable();
+  power_twi_disable();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
   sleep_enable();
   power_all_disable();
@@ -234,4 +237,8 @@ void system_sleep() {
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(INT1));
   power_all_enable();
+  cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
+  power_timer1_disable();  
+  power_usart0_disable();
+  power_twi_disable();  
 }
