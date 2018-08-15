@@ -9,7 +9,7 @@
 
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
-#define CHAN3 0
+//#define CHAN3
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -24,14 +24,14 @@
 #define FIFO_WATERMARK (0x128) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
 #define bufLength 384 // samples: 3x watermark
 int16_t accel[bufLength];
-uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
+uint32_t bufsPerFile = 75; // each buffer is 0.08 seconds; 750 buffers = 1 minute
 uint32_t wavBufLength = bufLength;
 
 // SD file system
 SdFat sd;
 File dataFile;
 
-uint32_t srate = 3200;
+uint32_t srate = 800;
 unsigned int fileCount = 0; 
 volatile boolean introPeriod = 1;
 
@@ -79,13 +79,13 @@ void setup() {
   #ifdef CHAN3
     wav_hdr.nChannels = 3;
     wav_hdr.nAvgBytesPerSec = srate * 6;
+    wav_hdr.nBlockAlign = 6;
   #else
     wav_hdr.nChannels = 1;
     wav_hdr.nAvgBytesPerSec = srate * 2;
+    wav_hdr.nBlockAlign = 2;
   #endif
   wav_hdr.nSamplesPerSec = srate;
-  
-  wav_hdr.nBlockAlign = 6;
   wav_hdr.nBitsPerSample = 16;
   sprintf(wav_hdr.dId,"data");
   wav_hdr.dLen = bufsPerFile * wavBufLength * 2; // number of bytes in data

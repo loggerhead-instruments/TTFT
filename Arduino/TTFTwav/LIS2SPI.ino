@@ -70,6 +70,7 @@ void lis2SpiInit(){
   // HF_ODR: 1
   // BDU: 0
 
+  if (srate==800) writeRegister(LIS_CTRL1, 0x78);
   if (srate==1600) writeRegister(LIS_CTRL1, 0x5A);
   if (srate==3200) writeRegister(LIS_CTRL1, 0x6A);
   delay(10);
