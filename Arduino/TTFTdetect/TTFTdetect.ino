@@ -5,7 +5,7 @@
 
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
-#define CHAN3 0
+#define CHAN3
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -18,18 +18,18 @@
 
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
 #define FIFO_WATERMARK (0x128) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
-#define bufLength 384 // samples: 3x watermark
+#define bufLength 128 // samples: 3x watermark
 int16_t accel[bufLength];
-uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
+uint32_t bufsPerFile = 75;
 uint32_t wavBufLength = bufLength;
 
-int16_t threshold = 100; // threshold for storing raw buffer
+int16_t threshold = 200; // threshold for storing raw buffer
 
 // SD file system
 SdFat sd;
 File dataFile;
 
-uint32_t srate = 3200;
+uint32_t srate = 1600;
 unsigned int fileCount = 0; 
 volatile boolean introPeriod = 1;
 
@@ -60,6 +60,7 @@ HdrStruct wav_hdr;
 #endif
 
 void setup() {
+  Serial.begin(115200);
   delay(4000);
   pinMode(LED, OUTPUT);
   digitalWrite(LED, HIGH);
@@ -74,13 +75,8 @@ void setup() {
   sprintf(wav_hdr.fId,"fmt ");
   wav_hdr.fLen = 0x10;
   wav_hdr.nFormatTag = 1;
-  #ifdef CHAN3
-    wav_hdr.nChannels = 3;
-    wav_hdr.nAvgBytesPerSec = srate * 6;
-  #else
-    wav_hdr.nChannels = 1;
-    wav_hdr.nAvgBytesPerSec = srate * 2;
-  #endif
+  wav_hdr.nChannels = 1;
+  wav_hdr.nAvgBytesPerSec = srate * 2;
   wav_hdr.nSamplesPerSec = srate;
   
   wav_hdr.nBlockAlign = 6;
@@ -109,17 +105,17 @@ void setup() {
       flashLed(2000);
   }
 
-  // double-tap to start
-  digitalWrite(LED, LOW);
-  lis2SpiDt(); // setup for double tap
-  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
-  system_sleep();
-
-  // 
-  // ASLEEP HERE
-  //
-  
-  detachInterrupt(digitalPinToInterrupt(INT0));
+//  // double-tap to start
+//  digitalWrite(LED, LOW);
+//  lis2SpiDt(); // setup for double tap
+//  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
+//  system_sleep();
+//
+//  // 
+//  // ASLEEP HERE
+//  //
+//  
+//  detachInterrupt(digitalPinToInterrupt(INT0));
 
   // initialize microSD
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
@@ -148,12 +144,13 @@ void loop() {
 }
 
 void processBuf(){
-  while((lis2SpiFifoPts() * 3 > bufLength)){
-    if(introPeriod) digitalWrite(LED, HIGH);
-    bufsRec++;
+  while((lis2SpiFifoPts() > bufLength)){
     lis2SpiFifoRead(bufLength);  //samples to read
-    if(detectSound){
+    if(detectSound()){
+      digitalWrite(LED, HIGH);
+      bufsRec++;
       dataFile.write(&accel, bufLength*2);
+      digitalWrite(LED, LOW);
     }
   }
   digitalWrite(LED, LOW);
@@ -192,19 +189,29 @@ void watermark(){
 
 
 // simple algorithm to detect whether buffer contains sound
-int detectSound(){
-  // high-pass filter
-  // Options:
+int16_t maxFiltered = 0;
+int diffData;
+
+boolean detectSound(){
+  // High-pass filter options:
   // diff()
   // IIR
   // FIR
 
-  int16_t maxFiltered = 0;
-  for (int i=0; i<bufLength; i++){
-    
+  // Threshold options:
+  // -fixed
+  // -dynamic (e.g. 4 * SD)
+
+  maxFiltered = 0;
+  for (int i=1; i<bufLength; i++){
+    diffData = accel[i] - accel[i-1];
+    if (diffData > maxFiltered) maxFiltered = diffData;
   }
-  if(maxFiltered > threshold) return 1;
-  return 0;
+  Serial.println(maxFiltered);
+  if(maxFiltered > threshold) 
+    return 1;
+  else
+    return 0;
 }
 
 

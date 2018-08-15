@@ -137,6 +137,13 @@ is reached. This is the default setting for CTRL2
   // data are stored in the 14-bit 2’s complement left-justified representation, 
   // which means that they always have to be right-shifted by two.
   for(int j=0; j<samplesToRead; j++) {
+    // going to chuck X and Y
+    temp1 = SPI.transfer(0x00);
+    temp2 = SPI.transfer(0x00);
+    temp1 = SPI.transfer(0x00);
+    temp2 = SPI.transfer(0x00);
+
+    // store only Z
     temp1 = SPI.transfer(0x00);
     temp2 = SPI.transfer(0x00);
     accel[j] = (temp2 << 8 | temp1) >>2;
