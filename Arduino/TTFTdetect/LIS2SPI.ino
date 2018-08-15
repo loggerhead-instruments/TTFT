@@ -70,6 +70,7 @@ void lis2SpiInit(){
   // HF_ODR: 1
   // BDU: 0
 
+  if (srate==800) writeRegister(LIS_CTRL1, 0x78);
   if (srate==1600) writeRegister(LIS_CTRL1, 0x5A);
   if (srate==3200) writeRegister(LIS_CTRL1, 0x6A);
   delay(10);
@@ -137,13 +138,15 @@ is reached. This is the default setting for CTRL2
   // data are stored in the 14-bit 2’s complement left-justified representation, 
   // which means that they always have to be right-shifted by two.
   for(int j=0; j<samplesToRead; j++) {
-    // going to chuck X and Y
-    temp1 = SPI.transfer(0x00);
-    temp2 = SPI.transfer(0x00);
-    temp1 = SPI.transfer(0x00);
-    temp2 = SPI.transfer(0x00);
+    #ifdef CHAN3
+      // going to chuck X and Y
+      temp1 = SPI.transfer(0x00);
+      temp2 = SPI.transfer(0x00);
+      temp1 = SPI.transfer(0x00);
+      temp2 = SPI.transfer(0x00);
+    #endif
 
-    // store only Z
+    // store only Z or magnitude
     temp1 = SPI.transfer(0x00);
     temp2 = SPI.transfer(0x00);
     accel[j] = (temp2 << 8 | temp1) >>2;

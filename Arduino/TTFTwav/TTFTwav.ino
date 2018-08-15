@@ -21,7 +21,7 @@
 #define INT1 3
 
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
-#define FIFO_WATERMARK (0x128) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
+#define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
 #define bufLength 384 // samples: 3x watermark
 int16_t accel[bufLength];
 uint32_t bufsPerFile = 75; // each buffer is 0.08 seconds; 750 buffers = 1 minute
