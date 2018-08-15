@@ -226,7 +226,9 @@ void system_sleep() {
   // make all pin inputs and enable pullups to reduce power
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
   power_timer1_disable();  
+  power_timer0_disable();
   power_usart0_disable();
+  power_spi_disable();
   power_twi_disable();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
   sleep_enable();
@@ -237,8 +239,9 @@ void system_sleep() {
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(INT1));
   power_all_enable();
+  power_spi_enable();
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
   power_timer1_disable();  
   power_usart0_disable();
-  power_twi_disable();  
+  power_twi_disable();
 }
