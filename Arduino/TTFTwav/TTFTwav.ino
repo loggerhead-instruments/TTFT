@@ -9,7 +9,7 @@
 
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
-//#define CHAN3 1
+#define CHAN3 0
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -31,7 +31,7 @@ uint32_t wavBufLength = bufLength;
 SdFat sd;
 File dataFile;
 
-uint32_t srate = 1600;
+uint32_t srate = 3200;
 unsigned int fileCount = 0; 
 volatile boolean introPeriod = 1;
 
@@ -142,7 +142,7 @@ void loop() {
      system_sleep();
      // ... ASLEEP HERE...
   }
-  digitalWrite(LED, HIGH);
+  //digitalWrite(LED, HIGH);
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
@@ -171,7 +171,7 @@ void flashLed(int interval) {
 void fileInit() {
   char filename[12]; 
   fileCount += 1;
-  sprintf(filename,"F%06d.wav",fileCount); //if can't open just use count
+  sprintf(filename,"F%06d.wav",fileCount);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
     fileCount += 1;
