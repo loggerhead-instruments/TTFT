@@ -40,6 +40,14 @@ int ProcCmd(char *pCmd)
        nchan = lv1;
        break; 
     }
+
+    // accelerometer full-scale   
+    case ('A' + ('G'<<8)):  
+    {
+       sscanf(&pCmd[3],"%d",&lv1);
+       accelScale = lv1;  // sample rate
+       break;
+    }
   } 
   return TRUE;
 }

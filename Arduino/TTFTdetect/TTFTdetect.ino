@@ -12,6 +12,7 @@
 // can be changed by setup.txt file
 int nchan = 1;
 uint32_t srate = 1600;
+int accelScale = 2;
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -109,6 +110,7 @@ void setup() {
   //
   
   detachInterrupt(digitalPinToInterrupt(INT0));
+  digitalWrite(LED, HIGH);
 
   // initialize microSD
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
