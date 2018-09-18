@@ -9,7 +9,7 @@
 
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
-//#define CHAN3
+#define CHAN3
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -31,7 +31,7 @@ uint32_t wavBufLength = bufLength;
 SdFat sd;
 File dataFile;
 
-uint32_t srate = 800;
+uint32_t srate = 1600;
 unsigned int fileCount = 0; 
 volatile boolean introPeriod = 1;
 

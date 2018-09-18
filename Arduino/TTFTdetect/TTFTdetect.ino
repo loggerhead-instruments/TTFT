@@ -10,8 +10,9 @@
 
 // If 3 channel recording defined will store only Z axis but let's it run at 1600 and 3200 Hz
 // Otherwise will store magnitude of 3 channels
- #define CHAN3
- uint32_t srate = 1600;
+#define CHAN3
+uint32_t srate = 1600;
+
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -101,6 +102,8 @@ void setup() {
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     flashLed(1000);
   }
+
+  loadScript();
   
   SPI.begin();
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
@@ -151,12 +154,12 @@ void loop() {
 void processBuf(){
   while((lis2SpiFifoPts() > bufLength)){
     lis2SpiFifoRead(bufLength);  //samples to read
- //   if(detectSound()){
+    if(detectSound()){
       if(introPeriod)  digitalWrite(LED, HIGH);
       bufsRec++;
       dataFile.write(&accel, bufLength*2);
       digitalWrite(LED, LOW);
- //   }
+    }
   }
   // digitalWrite(LED, LOW);
 }
@@ -206,6 +209,7 @@ boolean detectSound(){
   // Threshold options:
   // -fixed
   // -dynamic (e.g. 4 * SD)
+  return 1;
 
   maxFiltered = 0;
   for (int i=1; i<bufLength; i++){

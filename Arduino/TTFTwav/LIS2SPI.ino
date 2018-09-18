@@ -35,7 +35,7 @@ const byte SPI_WRITE = 0x00;
 #define LIS_FUNC_CTRL (0x3F)
 
 void lis2SpiDt(){
-  writeRegister(LIS_CTRL1, 0x60); // accel on 400 Hz
+  writeRegister(LIS_CTRL1, 0xA0); // accel on 25 Hz LP mode
   writeRegister(LIS_CTRL3, 0x38 | 0x02); // Tap Z enable, active low
   writeRegister(LIS_TAP_6D_THS, 0x0C); // set tap threshold
   writeRegister(LIS_INT_DUR, 0x7F); // set duration, quiet and shock time windows
