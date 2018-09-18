@@ -8,11 +8,10 @@
 #include <avr/sleep.h>
 #include <avr/power.h>
 
-// If 3 channel recording defined will store only Z axis but let's it run at 1600 and 3200 Hz
-// Otherwise will store magnitude of 3 channels
-#define CHAN3
+// default number of channels and sample rate
+// can be changed by setup.txt file
+int nchan = 1;
 uint32_t srate = 1600;
-
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -26,10 +25,9 @@ uint32_t srate = 1600;
 // when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
 // max buffer is 256 sets of 3-axis data
 #define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
-#define bufLength 128 // samples: 3x watermark
-int16_t accel[bufLength];
+int bufLength = 128; // samples: 3x watermark
+int16_t accel[384]; // hold up to this many samples
 uint32_t bufsPerFile = 750;  //should be 1 minute long files at 1600 Hz sample rate
-uint32_t wavBufLength = bufLength;
 
 int16_t threshold = 200; // threshold for storing raw buffer
 
@@ -75,21 +73,6 @@ void setup() {
   pinMode(INT1, INPUT_PULLUP);
   delay(1000);
   
-  //intialize .wav file header
-  sprintf(wav_hdr.rId,"RIFF");
-  sprintf(wav_hdr.wId,"WAVE");
-  sprintf(wav_hdr.fId,"fmt ");
-  wav_hdr.fLen = 0x10;
-  wav_hdr.nFormatTag = 1;
-  wav_hdr.nChannels = 1;
-  wav_hdr.nAvgBytesPerSec = srate * 2;
-  wav_hdr.nSamplesPerSec = srate;
-  
-  wav_hdr.nBlockAlign = 6;
-  wav_hdr.nBitsPerSample = 16;
-  sprintf(wav_hdr.dId,"data");
-  wav_hdr.dLen = bufsPerFile * wavBufLength * 2; // number of bytes in data
-  wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
   
   // initalize the  data ready and chip select pins:
   pinMode(chipSelectPinAccel, OUTPUT);
@@ -104,6 +87,8 @@ void setup() {
   }
 
   loadScript();
+  bufLength = bufLength * nchan;
+  wavInit();
   
   SPI.begin();
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
@@ -152,7 +137,7 @@ void loop() {
 }
 
 void processBuf(){
-  while((lis2SpiFifoPts() > bufLength)){
+  while((lis2SpiFifoPts() * nchan > bufLength)){
     lis2SpiFifoRead(bufLength);  //samples to read
     if(detectSound()){
       if(introPeriod)  digitalWrite(LED, HIGH);
@@ -249,3 +234,23 @@ void system_sleep() {
   power_usart0_disable();
   power_twi_disable();
 }
+
+void wavInit(){
+  //intialize .wav file header
+  sprintf(wav_hdr.rId,"RIFF");
+  sprintf(wav_hdr.wId,"WAVE");
+  sprintf(wav_hdr.fId,"fmt ");
+  wav_hdr.fLen = 0x10;
+  wav_hdr.nFormatTag = 1;
+  wav_hdr.nChannels = nchan;
+  wav_hdr.nAvgBytesPerSec = srate * 2 * nchan;
+  wav_hdr.nSamplesPerSec = srate;
+  
+  wav_hdr.nBlockAlign = 2 * nchan;
+  wav_hdr.nBitsPerSample = 16;
+  sprintf(wav_hdr.dId,"data");
+  wav_hdr.dLen = bufsPerFile * bufLength * 2; // number of bytes in data
+  wav_hdr.rLen = 36 + wav_hdr.dLen;  // total length of file in bytes - 8 bytes
+  
+}
+

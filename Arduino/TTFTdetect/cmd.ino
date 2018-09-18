@@ -8,14 +8,6 @@ int ProcCmd(char *pCmd)
   short n;
   unsigned int lv1;
   char s[22];
-        unsigned int tday;
-        unsigned int tmonth;
-        unsigned int tyear;
-        unsigned int thour;
-        unsigned int tmin;
-        unsigned int tsec;
-        byte rec_hour;
-        byte rec_min;
 
   pCV = (short*)pCmd;
 
@@ -38,6 +30,14 @@ int ProcCmd(char *pCmd)
     {
        sscanf(&pCmd[3],"%d",&lv1);
        threshold = lv1;
+       break; 
+    }
+
+    // channels to record
+    case ('C' + ('H'<<8)):
+    {
+       sscanf(&pCmd[3],"%d",&lv1);
+       nchan = lv1;
        break; 
     }
   } 

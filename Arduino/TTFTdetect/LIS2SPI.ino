@@ -38,8 +38,7 @@ void lis2SpiDt(){
   writeRegister(LIS_CTRL1, 0xA0); // accel on 25 Hz LP mode
   writeRegister(LIS_CTRL3, 0x38 | 0x02); // Tap Z enable, active low
   writeRegister(LIS_TAP_6D_THS, 0x0C); // set tap threshold
-  //writeRegister(LIS_INT_DUR, 0x7F); // set duration, quiet and shock time windows
-  writeRegister(LIS_INT_DUR, 0x7A); // set duration, quiet and shock time windows
+  writeRegister(LIS_INT_DUR, 0x7F); // set duration, quiet and shock time windows
   writeRegister(LIS_WAKE_UP_THS, 0x80); //double-tap enabled
   writeRegister(LIS_CTRL4, 0x08); // double-tap interrupt 1
 }
@@ -88,16 +87,15 @@ void lis2SpiInit(){
   writeRegister(LIS_CTRL5, 0x02);
   delay(10);
 
-  #ifndef CHAN3
   // Turn Module ON to calculate acceleration magnitude
-  writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
-  delay(10);
+  //writeRegister(LIS_FUNC_CTRL, 0x20);//0x20 Module On
+  //delay(10);
   
   // Bypass mode 00001000 0x08 // bypass mode with magnitude module on
   // FIFO in bypass mode, module on
-   writeRegister(LIS_FIFO_CTRL, 0x08);
-   delay(10);
-  #endif
+//   writeRegister(LIS_FIFO_CTRL, 0x08);
+//   delay(10);
+
   
   // Continuous mode FIFO 11001000 0xC8 (module result to FIFO)
   // Continuous mode FIFO 11000000 0xC0 (X,Y,Z to FIFO) 
@@ -107,11 +105,9 @@ void lis2SpiInit(){
   // Module_to_FIFO: 1 (module routine result is sent to FIFO instead of X,Y,Z)
   // RESVD: 00
   // IF_CS_PU_DIS: 0
-  #ifdef CHAN3
   writeRegister(LIS_FIFO_CTRL, 0xC0);
-  #else
-  writeRegister(LIS_FIFO_CTRL, 0XC8);
-  #endif
+  //writeRegister(LIS_FIFO_CTRL, 0XC8);
+
 }
 
 int lis2SpiTestResponse(){
@@ -138,19 +134,21 @@ is reached. This is the default setting for CTRL2
 
   // data are stored in the 14-bit 2’s complement left-justified representation, 
   // which means that they always have to be right-shifted by two.
-  for(int j=0; j<samplesToRead; j++) {
-    #ifdef CHAN3
-      // going to chuck X and Y
-      temp1 = SPI.transfer(0x00);
-      temp2 = SPI.transfer(0x00);
-      temp1 = SPI.transfer(0x00);
-      temp2 = SPI.transfer(0x00);
-    #endif
-
-    // store only Z or magnitude
+  for(int j=0; j<=samplesToRead - nchan; j+=nchan) {
     temp1 = SPI.transfer(0x00);
     temp2 = SPI.transfer(0x00);
-    accel[j] = (temp2 << 8 | temp1) >>2;
+    if(nchan==3) accel[j] = (temp2 << 8 | temp1) >>2;
+    
+    temp1 = SPI.transfer(0x00);
+    temp2 = SPI.transfer(0x00);
+   if(nchan==3) accel[j+1] = (temp2 << 8 | temp1) >>2;
+
+    // always store Z
+    temp1 = SPI.transfer(0x00);
+    temp2 = SPI.transfer(0x00);
+    if(nchan==3) accel[j+2] = (temp2 << 8 | temp1) >>2;
+    else
+      accel[j] = (temp2 << 8 | temp1) >>2;
   }
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }
