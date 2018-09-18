@@ -58,9 +58,9 @@ void lis2SpiInit(){
 
   //         ODR  FS HF_ODR BDU
   // 6400Hz: 0111 10 1      0 (0x7A)
-  // 3200Hz: 0110 00 1      0 (0x62)
+  // 3200Hz: 0110 00 1      0 (0x62) +/- 2g
   // 3200Hz: 0110 10 1      0 (0x6A) +/- 4g
-  // 1600Hz: 0101 00 1      0 (0x52)
+  // 1600Hz: 0101 00 1      0 (0x52) +/- 2g
   // 1600Hz: 0101 10 1      0 (0x5A) +/- 4g
   // 1600Hz: 0101 11 1      0 (0x5E) +/- 8g
   // 1600Hz: 0101 01 1      0 (0x56) +/- 16g
@@ -77,6 +77,10 @@ void lis2SpiInit(){
   if(accelScale==8) FS = 0x0C;
   if(accelScale==16) FS = 0x04;
 
+  // default to 1600 Hz at +/- 2 g if mess up setup.txt
+  writeRegister(LIS_CTRL1, 0x52);
+  delay(10);
+  
   if (srate==800) writeRegister(LIS_CTRL1, 0x70 | FS);
   if (srate==1600) writeRegister(LIS_CTRL1, 0x52 | FS);
   if (srate==3200) writeRegister(LIS_CTRL1, 0x62 | FS);
