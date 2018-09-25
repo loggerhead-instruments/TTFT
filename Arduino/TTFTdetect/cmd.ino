@@ -48,6 +48,15 @@ int ProcCmd(char *pCmd)
        accelScale = lv1;  // sample rate
        break;
     }
+
+    // skip double-tap to start
+    case ('S' + ('T'<<8)):
+    {
+       sscanf(&pCmd[3],"%d",&lv1);
+       skipTap = 0;
+       break; 
+    }
+
   } 
   return TRUE;
 }

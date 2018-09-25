@@ -7,12 +7,14 @@
 #include <SdFat.h>
 #include <avr/sleep.h>
 #include <avr/power.h>
+#include <prescaler.h>
 
 // default number of channels and sample rate
 // can be changed by setup.txt file
 int nchan = 1;
-uint32_t srate = 1600;
+int srate = 1600;
 int accelScale = 2;
+boolean skipTap = 1;
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -69,11 +71,8 @@ HdrStruct wav_hdr;
 void setup() {
   delay(4000);
   pinMode(LED, OUTPUT);
-  digitalWrite(LED, HIGH);
   pinMode(INT0, INPUT_PULLUP);
   pinMode(INT1, INPUT_PULLUP);
-  delay(1000);
-  
   
   // initalize the  data ready and chip select pins:
   pinMode(chipSelectPinAccel, OUTPUT);
@@ -83,8 +82,8 @@ void setup() {
   pinMode(DATAIN, INPUT);
 
   // initialize and test microSD
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    flashLed(1000);
+ while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    flashLed(150);
   }
 
   loadScript();
@@ -95,26 +94,39 @@ void setup() {
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
 
   int testResponse = lis2SpiTestResponse();
-  if (testResponse != 67) {
-      flashLed(2000);
+  while (testResponse != 67) {
+      flashLed(300);
+      testResponse = lis2SpiTestResponse();
   }
 
-  // double-tap to start
-  digitalWrite(LED, LOW);
-  lis2SpiDt(); // setup for double tap
-  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
-  system_sleep();
-
-  // 
-  // ASLEEP HERE
-  //
+  if(skipTap==0){
+    // wait here to give time to get in mold
+    setClockPrescaler(4); //slow down clock to save battery 4 = 16x slower
+    for(int i=0; i<20; i++){
+      digitalWrite(LED, HIGH);
+      delay(1);
+      digitalWrite(LED, LOW);
+      delay(400);
+    }
+    setClockPrescaler(0);
   
-  detachInterrupt(digitalPinToInterrupt(INT0));
-  digitalWrite(LED, HIGH);
+    // double-tap to start
+    digitalWrite(LED, LOW);
+    lis2SpiDt(); // setup for double tap
+    attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
+    system_sleep();
+  
+    // 
+    // ASLEEP HERE
+    //
+    
+    detachInterrupt(digitalPinToInterrupt(INT0));
+  }
+  
 
   // initialize microSD
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    flashLed(50);
+  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    flashLed(100);
   }
   fileInit();
  
@@ -131,11 +143,12 @@ void loop() {
      system_sleep();
      // ... ASLEEP HERE...
   }
-  //digitalWrite(LED, HIGH);
+  digitalWrite(LED, HIGH);
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
   fileInit();
+  digitalWrite(LED, LOW);
 }
 
 void processBuf(){
@@ -152,12 +165,10 @@ void processBuf(){
 }
 
 void flashLed(int interval) {
-  while(1){
     digitalWrite(LED, HIGH);
-    delay(interval);
+    delay(20);
     digitalWrite(LED, LOW);
     delay(interval);
-  }
 }
 
 void fileInit() {
