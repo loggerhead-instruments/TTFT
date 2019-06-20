@@ -1,7 +1,11 @@
 
+// AVR Board: Arduino Pro/Pro Mini
+// Microprocessor: ATmega328P, 3.3V, 8MHz
+
 // - should we flag overflow? Could store in upper bit of data--or not worry about it, because you don't know how much you miss
 // Issue with magnitude mode is that data is 800 Hz, not 1600 Hz; 3200 Hz results in a triangle wave
 
+// Include necessary libraries
 #include <SPI.h>
 #include <SdFat.h>
 #include <avr/sleep.h>
@@ -11,6 +15,7 @@
 // Otherwise will store magnitude of 3 channels
 #define CHAN3
 
+// Define other properties
 #define LED 4
 #define chipSelect 10   // microSD
 #define DATAOUT 11      //MOSI
@@ -24,7 +29,7 @@
 #define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
 #define bufLength 384 // samples: 3x watermark
 int16_t accel[bufLength];
-uint32_t bufsPerFile = 75; // each buffer is 0.08 seconds; 750 buffers = 1 minute
+uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minute
 uint32_t wavBufLength = bufLength;
 
 // SD file system
@@ -33,22 +38,22 @@ File dataFile;
 
 uint32_t srate = 1600;
 unsigned int fileCount = 0; 
-volatile boolean introPeriod = 1;
+volatile int bufsRec = 0;
 
 typedef struct hdrstruct {
-    char    rId[4];
+    char     rId[4];
     uint32_t rLen;
-    char    wId[4];
-    char    fId[4];
-    uint32_t    fLen;
+    char     wId[4];
+    char     fId[4];
+    uint32_t fLen;
     uint16_t nFormatTag;
     uint16_t nChannels;
     uint32_t nSamplesPerSec;
     uint32_t nAvgBytesPerSec;
     uint16_t nBlockAlign;
-    uint16_t  nBitsPerSample;
-    char    dId[4];
-    uint32_t  dLen;
+    uint16_t nBitsPerSample;
+    char     dId[4];
+    uint32_t dLen;
 } HdrStruct;
 
 HdrStruct wav_hdr;
@@ -68,6 +73,8 @@ void setup() {
   pinMode(INT0, INPUT_PULLUP);
   pinMode(INT1, INPUT_PULLUP);
   delay(1000);
+  digitalWrite(LED, LOW);
+
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
 
   //intialize .wav file header
@@ -98,69 +105,63 @@ void setup() {
   pinMode(DATAOUT, OUTPUT);
   pinMode(DATAIN, INPUT);
 
-  // initialize and test microSD
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+  // initialize and test microSD - start flashing LED slowly if SD card fails
+  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     flashLed(1000);
   }
-  
+
+  // Start SPI communication with accelerometer
   SPI.begin();
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
 
+  // Test accelerometer - start flashing LED quickly if accelerometer fails
   int testResponse = lis2SpiTestResponse();
-  if (testResponse != 67) {
-      flashLed(2000);
+  while (testResponse != 67) {
+      flashLed(500);
+      int testResponse = lis2SpiTestResponse();
   }
-
-  // double-tap to start
-  digitalWrite(LED, LOW);
-  lis2SpiDt(); // setup for double tap
-  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
-  system_sleep();
-
-  // 
-  // ASLEEP HERE
-  //
+  // IS THERE A SPI.endTransaction() missing here?
   
-  detachInterrupt(digitalPinToInterrupt(INT0));
-
   // initialize microSD
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    flashLed(50);
+  while (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    flashLed(200);
+    delay(1000);
   }
-  fileInit();
- 
+
+  // Check which file number to start at
+  checkExistingFiles();
+
+  // initialize accelerometer
   lis2SpiInit();
+  
 }
 
-volatile int bufsRec = 0;
-
+// Main recording loop
 void loop() {
+  // initialize file
+  fileInit();
   while (bufsRec < bufsPerFile) {
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
      //if(lis2SpiFifoStatus()==0) system_sleep();
      //if(lis2SpiFifoPts() < 128) system_sleep();
-     system_sleep();
+     
+     if (bufsRec < bufsPerFile) system_sleep();
      // ... ASLEEP HERE...
   }
-  //digitalWrite(LED, HIGH);
-  introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
-  fileInit();
 }
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-    if(introPeriod) digitalWrite(LED, HIGH);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
   }
-  digitalWrite(LED, LOW);
 }
 
 void flashLed(int interval) {
-  while(1){
+  for(int n=0; n<3; n++){
     digitalWrite(LED, HIGH);
     delay(interval);
     digitalWrite(LED, LOW);
@@ -168,26 +169,45 @@ void flashLed(int interval) {
   }
 }
 
+void checkExistingFiles() {
+  char filename[12];
+
+  // Increment by 1 as when creating new file
+  fileCount++;
+  sprintf(filename,"F%07d.wav",fileCount);
+
+  // check if file exists
+  while (sd.exists(filename)) {
+    fileCount++;
+    sprintf(filename,"F%07d.wav",fileCount);    
+  }
+
+  // Decrease by 1 again (fileInit increases by 1)
+  fileCount--;
+}
+
 void fileInit() {
-  char filename[12]; 
-  fileCount += 1;
-  sprintf(filename,"F%06d.wav",fileCount);
+  char filename[12];
+
+  // Turn LED on while making new file
+  digitalWrite(LED, HIGH); 
+  
+  fileCount++;
+  sprintf(filename,"F%07d.wav",fileCount);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
-    fileCount += 1;
-    sprintf(filename,"F%06d.wav",fileCount); //if can't open just use count
+    fileCount++;
+    sprintf(filename,"F%07d.wav",fileCount); //if can't open just use count
     dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   }
   dataFile.write((uint8_t *)&wav_hdr, 44);
-}
 
-void doubleTap(){
-  // do nothing just wake up
+  // Turn LED off
+  digitalWrite(LED, LOW);
 }
 
 void watermark(){
   // wake up
-  
 }
 
 
