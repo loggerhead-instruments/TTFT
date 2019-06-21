@@ -75,7 +75,14 @@ void setup() {
   delay(1000);
   digitalWrite(LED, LOW);
 
+  // deactivate board components not in use (timer0 used in delay, usart0, spi, twi in use)
   cbi(ADCSRA,ADEN);  // switch Analog to Digital converter OFF
+  ADCSRA = 0;         // disable ADC
+  power_adc_disable(); // ADC converter
+  power_timer1_disable();// Timer 1
+  power_timer2_disable();// Timer 2
+  power_twi_disable(); // TWI (I2C)
+  power_usart0_disable();// Serial (USART) 
 
   //intialize .wav file header
   sprintf(wav_hdr.rId,"RIFF");
