@@ -11,7 +11,7 @@
 
 // default number of channels and sample rate
 // can be changed by setup.txt file
-int nchan = 1;
+int nchan = 3;
 int srate = 1600;
 int accelScale = 2;
 boolean skipTap = 1;
@@ -155,13 +155,13 @@ void processBuf(){
   while((lis2SpiFifoPts() * nchan > bufLength)){
     lis2SpiFifoRead(bufLength);  //samples to read
     if(detectSound()){
-      if(introPeriod)  digitalWrite(LED, HIGH);
+      if(introPeriod) digitalWrite(LED, HIGH);
       bufsRec++;
       dataFile.write(&accel, bufLength*2);
       digitalWrite(LED, LOW);
     }
   }
-  // digitalWrite(LED, LOW);
+  digitalWrite(LED, LOW);
 }
 
 void flashLed(int interval) {

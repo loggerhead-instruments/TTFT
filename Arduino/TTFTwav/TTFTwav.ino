@@ -9,7 +9,7 @@
 
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
-#define CHAN3
+#define CHAN1
 
 #define LED 4
 #define chipSelect 10   // microSD
@@ -111,17 +111,17 @@ void setup() {
       flashLed(2000);
   }
 
-  // double-tap to start
-  digitalWrite(LED, LOW);
-  lis2SpiDt(); // setup for double tap
-  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
-  system_sleep();
-
-  // 
-  // ASLEEP HERE
-  //
-  
-  detachInterrupt(digitalPinToInterrupt(INT0));
+//  // double-tap to start
+//  digitalWrite(LED, LOW);
+//  lis2SpiDt(); // setup for double tap
+//  attachInterrupt(digitalPinToInterrupt(INT0), doubleTap, FALLING);
+//  system_sleep();
+//
+//  // 
+//  // ASLEEP HERE
+//  //
+//  
+//  detachInterrupt(digitalPinToInterrupt(INT0));
 
   // initialize microSD
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
