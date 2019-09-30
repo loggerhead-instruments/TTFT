@@ -133,14 +133,15 @@ is reached. This is the default setting for CTRL2
   digitalWrite(chipSelectPinAccel, LOW);
   // send the device the register you want to read:
   SPI.transfer(dataToSend);
-  byte temp1, temp2;
+  uint8_t temp1, temp2;
 
   // data are stored in the 14-bit 2’s complement left-justified representation, 
   // which means that they always have to be right-shifted by two.
   for(int j=0; j<samplesToRead; j++) {
     temp1 = SPI.transfer(0x00);
     temp2 = SPI.transfer(0x00);
-    accel[j] = (temp2 << 8 | temp1) >>2;
+    //accel[j] = (temp2 << 8 | temp1) >>2;
+    accel[j] = (temp2 << 8 | temp1);
   }
   digitalWrite(chipSelectPinAccel, HIGH); // take the chip select high to de-select:
 }

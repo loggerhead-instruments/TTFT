@@ -3,15 +3,20 @@
 // Board programmed using USB via Arduino Zero Native USB port
 
 
+// To Do:
+// - sleep and wake from accelerometer interrupt to read. Interrupt 1 seems to be stuck LOW.
+// - file list and delete to work
+// - filenames based on date and time
+// - check to make sure acclerometer starts (seems to have intermittent failure to start)
+
 #include <Wire.h>
-  #include <SPI.h>
-  #include <SdFat.h>
-  #include <RTCZero.h>
-  #include "amx32.h"
-  #include "LowPower.h"
-  
-  SdFat sd;
-  File dataFile;
+#include <SPI.h>
+#include <SdFat.h>
+#include <RTCZero.h>
+#include "LowPower.h"
+
+SdFat sd;
+File dataFile;
 
 // *** USER SETTINGS *********************//
 int printDiags = 0;
@@ -33,12 +38,13 @@ uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minu
 #define chipSelectPinAccel 5
 #define chipSelectMemory 12 
 #define chipSelect 10  // microSD
-#define INT0 13
-#define INT1 11
+#define INT1 13
+#define INT2 11
 #define SDPOW PIN_LED_RXL
 #define DATAOUT 23      //MOSI PB10
 #define DATAIN 22       //MISO PA12
 #define SPICLOCK 24     //SCK PB11
+#define PWM 8
 
 volatile int bufsRec = 0;
 
@@ -122,12 +128,37 @@ void setup() {
   SerialUSB.println("USB disabled");
   SerialUSB.println("Ignore error");
   delay(500); // time to display
+
+
+                       
+//  // Configure the regulator to run in normal mode when in standby mode
+//  // Otherwise it defaults to low power mode and can only supply 50 uA
+//  SYSCTRL->VREG.bit.RUNSTDBY = 1;
+//
+//  // Enable the DFLL48M clock in standby mode
+//  SYSCTRL->DFLLCTRL.bit.RUNSTDBY = 1;
+//  
+//  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
   USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
 
   updateTemp();  // get first temperature reading ready
 
-  fileInit();
+  //fileInit();
   lis2SpiInit();
+  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);  // using low instead of falling, in case already low when go to sleep
+
+  // looking at this forum because wake from interrupt not working
+  // https://forum.arduino.cc/index.php?topic=410699.0
+  // Set the XOSC32K to run in standby
+   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
+   
+   // Configure EIC to use GCLK1 which uses XOSC32K
+   // This has to be done after the first call to attachInterrupt()
+   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
+                       GCLK_CLKCTRL_GEN_GCLK1 |
+                       GCLK_CLKCTRL_CLKEN;
+
+  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
 
 
@@ -135,15 +166,19 @@ void loop() {
   while (bufsRec < bufsPerFile) {
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
      //if(lis2SpiFifoStatus()==0) system_sleep();
-     //if(lis2SpiFifoPts() < 128) system_sleep();
-     // system_sleep();
+     if(lis2SpiFifoPts() * 3 < bufLength - 10) {
+    //  SerialUSB.println(lis2SpiFifoPts());
+      system_sleep();
+     }
+     
+     //system_sleep();
      // ... ASLEEP HERE...
   }
   //digitalWrite(ledGreen, HIGH);
   introPeriod = 0;
   bufsRec = 0;
-  dataFile.close();
-  fileInit();
+  //dataFile.close();
+  //fileInit();
 
   // could write pressure/temperature here to log file
   
@@ -151,10 +186,12 @@ void loop() {
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-    if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
+   // if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
-    dataFile.write(&accel, bufLength*2);
+   // dataFile.write(&accel, bufLength*2);
+    
+ //   SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
   }
   digitalWrite(ledGreen, ledGreen_OFF);
 }
@@ -165,14 +202,16 @@ void sensorInit(){
 
   pinMode(ledGreen, OUTPUT);
   pinMode(vSense, INPUT);
-  pinMode(INT0, INPUT_PULLUP);
   pinMode(INT1, INPUT_PULLUP);
+  pinMode(INT2, INPUT_PULLUP);
   pinMode(SDPOW, OUTPUT);
   digitalWrite(SDPOW, HIGH); // turn on power to SD
   pinMode(chipSelectPinAccel, OUTPUT);
   digitalWrite(chipSelectPinAccel, HIGH);
-  pinMode(chipSelectMemory, OUTPUT);
+  pinMode(chipSelectMemory, OUTPUT);  // flash memory chip
   digitalWrite(chipSelectMemory, HIGH);
+  pinMode(chipSelect, OUTPUT);  // SD
+  digitalWrite(chipSelect, HIGH);
   pinMode(SPICLOCK, OUTPUT);
   pinMode(DATAOUT, OUTPUT);
   pinMode(DATAIN, INPUT);
@@ -185,20 +224,21 @@ void sensorInit(){
   SerialUSB.print("Battery: ");
   SerialUSB.println(readVoltage());
 
-  // see if the card is present and can be initialized:
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    SerialUSB.println("Card failed");
-  }
-
-  SerialUSB.println("Card init");
+//  // see if the card is present and can be initialized:
+//  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+//    SerialUSB.println("SD failed");
+//    flashLed(40);
+//  }
+//  SerialUSB.println("SD init");
 
   SPI.begin();
-  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
+  SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
   SerialUSB.println("SPI Started");
 
   int testResponse = lis2SpiTestResponse();
   SerialUSB.print("Accelerometer:");
   if (testResponse != 67) {
+      SerialUSB.println(testResponse);
       SerialUSB.println(" Not connected");
       flashLed(100);
   }
@@ -273,8 +313,8 @@ unsigned long RTCToUNIXTime(int uYear, int uMonth, int uDay, int uHour, int uMin
   Ticks += uDay * SECONDS_IN_DAY;
   
   // Calculate Time Ticks CHANGES ARE HERE
-  Ticks += (ULONG)uHour * SECONDS_IN_HOUR;
-  Ticks += (ULONG)uMinute * SECONDS_IN_MINUTE;
+  Ticks += (uint32_t)uHour * SECONDS_IN_HOUR;
+  Ticks += (uint32_t)uMinute * SECONDS_IN_MINUTE;
   Ticks += uSecond;
 
   return Ticks;
@@ -336,5 +376,16 @@ void doubleTap(){
 
 void watermark(){
   // wake up
+  digitalWrite(ledGreen, ledGreen_ON);
+  SerialUSB.println(".");
+}
+
+//****************************************************************  
+// set system into the sleep state 
+// system wakes up when interrupt detected
+void system_sleep() {
   
+
+  __WFI(); //Wait for interrupt
+  //detachInterrupt(digitalPinToInterrupt(INT2));
 }

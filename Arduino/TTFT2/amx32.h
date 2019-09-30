@@ -1,6 +1,6 @@
 // AMX data file
 
-#define ULONG unsigned long
+#define uint32_t unsigned long
 #define DFORM_LONG 4
 #define DFORM_I24 3
 #define DFORM_SHORT 2
@@ -35,8 +35,8 @@ struct SENSOR{
 
 struct DF_HEAD
 {
-    ULONG Version; // firmware version
-    ULONG UserID;  //tag type
+    uint32_t Version; // firmware version
+    uint32_t UserID;  //tag type
     TIME_HEAD RecStartTime;
     float voltage;
 };
@@ -46,9 +46,9 @@ struct SID_SPEC
 	char	SID[STR_MAX];
   uint16_t sidType; // 0 = raw, 1 = summary  histogram
   uint16_t NU;
-	ULONG 	nSamples;	  // Size in samples of this record (excluding header)
+	uint32_t 	nSamples;	  // Size in samples of this record (excluding header)
 	SENSOR  sensor;	  // used to encode what data are saved: bitmask bit (accel3, mag3, gyro3, press, temperature, mic)
-	ULONG	dForm;	  // short, long, or I24
+	uint32_t	dForm;	  // short, long, or I24
 	float	srate;	  // Sample rate (Hz)
 };
 

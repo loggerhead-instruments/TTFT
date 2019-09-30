@@ -1,4 +1,4 @@
-// Menu for when iTag connected via Serial Interface
+// Menu for when TTFT2 connected via Serial Interface
 #define PACKET 1024
 
 void setupMenu(){
@@ -67,7 +67,7 @@ void printChipId() {
   ptr++;
   val4 = *ptr;
   char buf[42];
-  sprintf(buf, "iTag %8x%8x%8x%8x", val1, val2, val3, val4);
+  sprintf(buf, "TTFT2 %8x%8x%8x%8x", val1, val2, val3, val4);
   SerialUSB.println(buf);
 }
 
