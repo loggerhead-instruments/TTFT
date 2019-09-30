@@ -8,6 +8,7 @@
 // - file list and delete to work
 // - filenames based on date and time
 // - check to make sure acclerometer starts (seems to have intermittent failure to start)
+// - have backup wake from RTC (in case accelerometer hiccup)?
 
 #include <Wire.h>
 #include <SPI.h>
@@ -166,8 +167,7 @@ void loop() {
   while (bufsRec < bufsPerFile) {
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
      //if(lis2SpiFifoStatus()==0) system_sleep();
-     if(lis2SpiFifoPts() * 3 < bufLength - 10) {
-    //  SerialUSB.println(lis2SpiFifoPts());
+     if(lis2SpiFifoPts() * 3 < bufLength - 10) {  // maybe change this to looking at the interrupt flag to decide whether to sleep; INT2 needs to be high before sleeping
       system_sleep();
      }
      
@@ -186,7 +186,7 @@ void loop() {
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-   // if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
+   if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
    // dataFile.write(&accel, bufLength*2);
@@ -232,7 +232,7 @@ void sensorInit(){
 //  SerialUSB.println("SD init");
 
   SPI.begin();
-  SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
+  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
   SerialUSB.println("SPI Started");
 
   int testResponse = lis2SpiTestResponse();
@@ -376,8 +376,7 @@ void doubleTap(){
 
 void watermark(){
   // wake up
-  digitalWrite(ledGreen, ledGreen_ON);
-  SerialUSB.println(".");
+  // digitalWrite(ledGreen, ledGreen_ON);
 }
 
 //****************************************************************  
