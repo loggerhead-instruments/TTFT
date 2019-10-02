@@ -1,13 +1,16 @@
 // TTFT2
-// Board bootloader loaded using AtmelICE
+// Board bootloader loaded using AtmelICE from Arudino IDE
 // Board programmed using USB via Arduino Zero Native USB port
 
-
 // To Do:
-// - sleep and wake from accelerometer interrupt to read. Interrupt 1 seems to be stuck LOW.
 // - file list and delete to work
 // - filenames based on date and time
-// - check to make sure acclerometer starts (seems to have intermittent failure to start)
+
+
+// Optimizations (not critical):
+// - to save power:
+//       + change unused pins to INPUTS
+//       + make a larger internal buffer so uSD writes are at least 512 bytes 
 // - have backup wake from RTC (in case accelerometer hiccup)?
 
 #include <Wire.h>
@@ -115,39 +118,7 @@ typedef struct hdrstruct {
 HdrStruct wav_hdr;
 
 void setup() {
-  SerialUSB.begin(115200);
-  delay(10000);  // long delay here to make easier to reprogram
-  SerialUSB.println("TTFT2");
-  makeWavHeader();
-  Wire.begin();
-  Wire.setClock(400);  // set I2C clock to 400 kHz
-  rtc.begin();
-  sensorInit();
-  setupMenu();  
   
-  SerialUSB.println("Running"); 
-  SerialUSB.println("USB disabled");
-  SerialUSB.println("Ignore error");
-  delay(500); // time to display
-
-
-                       
-//  // Configure the regulator to run in normal mode when in standby mode
-//  // Otherwise it defaults to low power mode and can only supply 50 uA
-//  SYSCTRL->VREG.bit.RUNSTDBY = 1;
-//
-//  // Enable the DFLL48M clock in standby mode
-//  SYSCTRL->DFLLCTRL.bit.RUNSTDBY = 1;
-//  
-//  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
-  USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
-
-  updateTemp();  // get first temperature reading ready
-
-  //fileInit();
-  lis2SpiInit();
-  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);  // using low instead of falling, in case already low when go to sleep
-
   // looking at this forum because wake from interrupt not working
   // https://forum.arduino.cc/index.php?topic=410699.0
   // Set the XOSC32K to run in standby
@@ -160,6 +131,46 @@ void setup() {
                        GCLK_CLKCTRL_CLKEN;
 
   SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+  
+  SerialUSB.begin(9600);
+  // Wait for USB SerialUSB 
+  while (!SerialUSB) {
+    SysCall::yield();
+  }
+  SerialUSB.println("TTFT2");
+  delay(5000);  // long delay here to make easier to reprogram
+
+  pinMode(SDPOW, OUTPUT);
+  digitalWrite(SDPOW, HIGH); // turn on power to SD
+  // see if the card is present and can be initialized:
+  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    SerialUSB.println("SD failed");
+    flashLed(1000);
+  }
+  SerialUSB.println("SD init");
+  
+  makeWavHeader();
+  Wire.begin();
+  Wire.setClock(400);  // set I2C clock to 400 kHz
+  rtc.begin();
+  sensorInit();
+  readTestFile();
+  setupMenu();  
+  
+  SerialUSB.println("Running"); 
+  SerialUSB.println("USB disabled");
+  SerialUSB.println("Ignore error");
+  delay(500); // time to display
+                  
+//  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
+  USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
+
+  updateTemp();  // get first temperature reading ready
+
+  fileInit();
+  lis2SpiInit();
+  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);  // using low instead of falling, in case already low when go to sleep
+
 }
 
 
@@ -177,8 +188,8 @@ void loop() {
   //digitalWrite(ledGreen, HIGH);
   introPeriod = 0;
   bufsRec = 0;
-  //dataFile.close();
-  //fileInit();
+  dataFile.close();
+  fileInit();
 
   // could write pressure/temperature here to log file
   
@@ -189,7 +200,7 @@ void processBuf(){
    if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
     lis2SpiFifoRead(bufLength);  //samples to read
-   // dataFile.write(&accel, bufLength*2);
+    dataFile.write(&accel, bufLength*2);
     
  //   SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
   }
@@ -204,17 +215,15 @@ void sensorInit(){
   pinMode(vSense, INPUT);
   pinMode(INT1, INPUT_PULLUP);
   pinMode(INT2, INPUT_PULLUP);
-  pinMode(SDPOW, OUTPUT);
-  digitalWrite(SDPOW, HIGH); // turn on power to SD
+
   pinMode(chipSelectPinAccel, OUTPUT);
   digitalWrite(chipSelectPinAccel, HIGH);
   pinMode(chipSelectMemory, OUTPUT);  // flash memory chip
   digitalWrite(chipSelectMemory, HIGH);
-  pinMode(chipSelect, OUTPUT);  // SD
-  digitalWrite(chipSelect, HIGH);
-  pinMode(SPICLOCK, OUTPUT);
-  pinMode(DATAOUT, OUTPUT);
-  pinMode(DATAIN, INPUT);
+
+//  pinMode(SPICLOCK, OUTPUT);
+//  pinMode(DATAOUT, OUTPUT);
+//  pinMode(DATAIN, INPUT);
 
   // Digital IO
   // SerialUSB.println("Turning green ledGreen on");
@@ -224,27 +233,20 @@ void sensorInit(){
   SerialUSB.print("Battery: ");
   SerialUSB.println(readVoltage());
 
-//  // see if the card is present and can be initialized:
-//  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-//    SerialUSB.println("SD failed");
-//    flashLed(40);
+//  SPI.begin();
+//  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
+//  SerialUSB.println("SPI Started");
+//
+//  int testResponse = lis2SpiTestResponse();
+//  SerialUSB.print("Accelerometer:");
+//  if (testResponse != 67) {
+//      SerialUSB.println(testResponse);
+//      SerialUSB.println(" Not connected");
+//      flashLed(500);
 //  }
-//  SerialUSB.println("SD init");
-
-  SPI.begin();
-  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
-  SerialUSB.println("SPI Started");
-
-  int testResponse = lis2SpiTestResponse();
-  SerialUSB.print("Accelerometer:");
-  if (testResponse != 67) {
-      SerialUSB.println(testResponse);
-      SerialUSB.println(" Not connected");
-      flashLed(100);
-  }
-  else{
-    SerialUSB.println(" connected");
-  }
+//  else{
+//    SerialUSB.println(" connected");
+//  }
 
   // Pressure sensor
   if(pressInit()){
@@ -278,46 +280,6 @@ float readVoltage(){
 
 void resetFunc(){
 
-}
-
-void getTime(){
-  day = rtc.getDay();
-  month = rtc.getMonth();
-  year = rtc.getYear();
-  hour = rtc.getHours();
-  minute = rtc.getMinutes();
-  second = rtc.getSeconds();
-}
-
-// Calculates Accurate UNIX Time Based on RTC Timestamp
-unsigned long RTCToUNIXTime(int uYear, int uMonth, int uDay, int uHour, int uMinute, int uSecond){
-  int i;
-  unsigned const char DaysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-  unsigned long Ticks = 0;
-
-  long yearsSince = uYear+30; // Same as tm->year + 2000 - 1970
-  long numLeaps = yearsSince >> 2; // yearsSince / 4 truncated
-  
-  if((!(uYear%4)) && (uMonth>2)) Ticks+=SECONDS_IN_DAY;  //dm 8/9/2012  If current year is leap, add one day
-
-  // Calculate Year Ticks
-  Ticks += (yearsSince-numLeaps)*SECONDS_IN_YEAR;
-  Ticks += numLeaps * SECONDS_IN_LEAP;
-
-  // Calculate Month Ticks
-  for(i=0; i < uMonth-1; i++){
-       Ticks += DaysInMonth[i] * SECONDS_IN_DAY;
-  }
-
-  // Calculate Day Ticks
-  Ticks += uDay * SECONDS_IN_DAY;
-  
-  // Calculate Time Ticks CHANGES ARE HERE
-  Ticks += (uint32_t)uHour * SECONDS_IN_HOUR;
-  Ticks += (uint32_t)uMinute * SECONDS_IN_MINUTE;
-  Ticks += uSecond;
-
-  return Ticks;
 }
 
 void powerDown(){
@@ -387,4 +349,25 @@ void system_sleep() {
 
   __WFI(); //Wait for interrupt
   //detachInterrupt(digitalPinToInterrupt(INT2));
+}
+
+
+// for debugging purposes
+void readTestFile(){
+  // see if can read from file
+  File testFile;
+  testFile = sd.open("test.txt");
+  if(testFile){
+    char c;
+    do{
+        c = testFile.read();
+        SerialUSB.write(c);
+        
+      }while(testFile.available());
+      SerialUSB.println();
+      testFile.close();
+  }
+  else{
+    SerialUSB.println("Unable to open test.txt");
+  }
 }

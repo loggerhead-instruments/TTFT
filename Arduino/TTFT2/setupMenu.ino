@@ -4,14 +4,17 @@
 void setupMenu(){
   displayMenu();
 
+  int inByteVal;
   while(1){
     digitalWrite(ledGreen,ledGreen_ON);
+    delay(100);
     if(SerialUSB.available()){
-      int inByte = SerialUSB.read();
-   //   SerialUSB.print("Selection:"); SerialUSB.println(inByte);
-      switch (inByte){
+      // SerialUSB.read() interferes with reading file from sd card; clock issue?
+      inByteVal = SerialUSB.read();
+      // SerialUSB.print("Selection:"); SerialUSB.println(inByte);
+      switch (inByteVal){
         case 49:  //list files
-          listFiles();
+          listFilesMenu();
           clearSerial();
           break;
         case 50: // download files
@@ -36,8 +39,7 @@ void setupMenu(){
           clearSerial();
           return;  
       }
-      inByte = 0;
-   //   displayMenu();
+      inByteVal = 0;
     }
   }
 }
@@ -46,7 +48,6 @@ void displayMenu(){
   SerialUSB.println();
   SerialUSB.print("TTFT2: ");
   printChipId();
-  getTime();
   printTime();
   SerialUSB.println("(1) List files");
   SerialUSB.println("(2) Download File");
@@ -71,8 +72,10 @@ void printChipId() {
   SerialUSB.println(buf);
 }
 
-void listFiles(){
+void listFilesMenu(){
   sd.chdir(); // change to root
+  readTestFile();
+
   printChipId();
   printDirectory(false);
 }
@@ -127,12 +130,11 @@ void serialSetTime(){
   rtc.setDate(day, month, year);
   SerialUSB.println("New Time: "); printTime();
 }
-//170202142700
 
 
 void printDirectory(int deleteFile) {
   SdFile file;
-  char myFileName[40];
+  char myFileName[40]; 
   sd.vwd()->rewind(); 
   while (file.openNext(sd.vwd(), O_READ)) {
     if(!file.isDir()){
@@ -265,4 +267,59 @@ void sendFile(File *file){
   }
 
   digitalWrite(ledGreen,ledGreen_OFF);
+}
+
+
+
+// Functions to read info about microSD card
+
+// serial output steam
+ArduinoOutStream cout(SerialUSB);
+
+uint8_t cidDmp() {
+  cid_t cid;
+  if (!sd.card()->readCID(&cid)) {
+    SerialUSB.println("readCID failed");
+    return false;
+  }
+  cout << F("\nManufacturer ID: ");
+  cout << hex << int(cid.mid) << dec << endl;
+  cout << F("OEM ID: ") << cid.oid[0] << cid.oid[1] << endl;
+  cout << F("Product: ");
+  for (uint8_t i = 0; i < 5; i++) {
+    cout << cid.pnm[i];
+  }
+  cout << F("\nVersion: ");
+  cout << int(cid.prv_n) << '.' << int(cid.prv_m) << endl;
+  cout << F("Serial number: ") << hex << cid.psn << dec << endl;
+  cout << F("Manufacturing date: ");
+  cout << int(cid.mdt_month) << '/';
+  cout << (2000 + cid.mdt_year_low + 10 * cid.mdt_year_high) << endl;
+  cout << endl;
+  return true;
+}
+
+// global for card size
+uint32_t cardSize;
+
+// global for card erase size
+uint32_t eraseSize;
+void volDmp() {
+  cout << F("\nVolume is FAT") << int(sd.vol()->fatType()) << endl;
+  cout << F("blocksPerCluster: ") << int(sd.vol()->blocksPerCluster()) << endl;
+  cout << F("clusterCount: ") << sd.vol()->clusterCount() << endl;
+  cout << F("freeClusters: ");
+  uint32_t volFree = sd.vol()->freeClusterCount();
+  cout <<  volFree << endl;
+  float fs = 0.000512*volFree*sd.vol()->blocksPerCluster();
+  cout << F("freeSpace: ") << fs << F(" MB (MB = 1,000,000 bytes)\n");
+  cout << F("fatStartBlock: ") << sd.vol()->fatStartBlock() << endl;
+  cout << F("fatCount: ") << int(sd.vol()->fatCount()) << endl;
+  cout << F("blocksPerFat: ") << sd.vol()->blocksPerFat() << endl;
+  cout << F("rootDirStart: ") << sd.vol()->rootDirStart() << endl;
+  cout << F("dataStartBlock: ") << sd.vol()->dataStartBlock() << endl;
+  if (sd.vol()->dataStartBlock() % eraseSize) {
+    cout << F("Data area is not aligned on flash erase boundaries!\n");
+    cout << F("Download and use formatter from www.sdcard.org!\n");
+  }
 }
