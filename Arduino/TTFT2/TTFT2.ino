@@ -2,10 +2,17 @@
 // Board bootloader loaded using AtmelICE from Arudino IDE
 // Board programmed using USB via Arduino Zero Native USB port
 
-// To Do:
-// - file list and delete to work
-// - filenames based on date and time
+// Note: SAMD variants.h needs to have the following lines changed, otherwise SD_POW will get switched off when read USB
+// C:\Users\dmann\AppData\Local\Arduino15\packages\arduino\hardware\samd\1.8.3\variants\arduino_zero\variant.h
+// LEDs
+//#define PIN_LED_13           PIN_A5
+//#define PIN_LED_RXL          PIN_A5
+//#define PIN_LED_TXL          PIN_A5
+//#define PIN_LED              PIN_A5
 
+
+// To Do:
+// - filenames based on date and time
 
 // Optimizations (not critical):
 // - to save power:
@@ -44,7 +51,7 @@ uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minu
 #define chipSelect 10  // microSD
 #define INT1 13
 #define INT2 11
-#define SDPOW PIN_LED_RXL
+#define SDPOW 25 // previously PIN_LED_RXL
 #define DATAOUT 23      //MOSI PB10
 #define DATAIN 22       //MISO PA12
 #define SPICLOCK 24     //SCK PB11
@@ -133,19 +140,16 @@ void setup() {
   SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
   
   SerialUSB.begin(9600);
-  // Wait for USB SerialUSB 
-  while (!SerialUSB) {
-    SysCall::yield();
-  }
+  delay(10000);  // long delay here to make easier to reprogram
   SerialUSB.println("TTFT2");
-  delay(5000);  // long delay here to make easier to reprogram
+  
 
   pinMode(SDPOW, OUTPUT);
   digitalWrite(SDPOW, HIGH); // turn on power to SD
   // see if the card is present and can be initialized:
   if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
     SerialUSB.println("SD failed");
-    flashLed(1000);
+    flashLed(100);
   }
   SerialUSB.println("SD init");
   
@@ -154,7 +158,6 @@ void setup() {
   Wire.setClock(400);  // set I2C clock to 400 kHz
   rtc.begin();
   sensorInit();
-  readTestFile();
   setupMenu();  
   
   SerialUSB.println("Running"); 
@@ -320,9 +323,11 @@ void flashLed(int interval) {
 }
 
 void fileInit() {
-  char filename[12]; 
+  char filename[40]; 
   fileCount += 1;
-  sprintf(filename,"F%06d.wav",fileCount);
+  getTime(); // update time
+  SdFile::dateTimeCallback(file_date_time);
+  sprintf(filename,"F%2d_%02d%02d%02dT%02d%02d%02d.wav",fileCount, year, month, day, hour, minute, second);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
     fileCount += 1;
@@ -351,23 +356,9 @@ void system_sleep() {
   //detachInterrupt(digitalPinToInterrupt(INT2));
 }
 
-
-// for debugging purposes
-void readTestFile(){
-  // see if can read from file
-  File testFile;
-  testFile = sd.open("test.txt");
-  if(testFile){
-    char c;
-    do{
-        c = testFile.read();
-        SerialUSB.write(c);
-        
-      }while(testFile.available());
-      SerialUSB.println();
-      testFile.close();
-  }
-  else{
-    SerialUSB.println("Unable to open test.txt");
-  }
+//This function returns the date and time for SD card file access and modify time. One needs to call in setup() to register this callback function: SdFile::dateTimeCallback(file_date_time);
+void file_date_time(uint16_t* date, uint16_t* time) 
+{
+    *date=FAT_DATE(year,month,day);
+    *time=FAT_TIME(hour,minute,second);
 }

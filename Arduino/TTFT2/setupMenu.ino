@@ -2,14 +2,13 @@
 #define PACKET 1024
 
 void setupMenu(){
-  displayMenu();
+  //displayMenu();
 
   int inByteVal;
   while(1){
     digitalWrite(ledGreen,ledGreen_ON);
     delay(100);
     if(SerialUSB.available()){
-      // SerialUSB.read() interferes with reading file from sd card; clock issue?
       inByteVal = SerialUSB.read();
       // SerialUSB.print("Selection:"); SerialUSB.println(inByte);
       switch (inByteVal){
@@ -74,8 +73,6 @@ void printChipId() {
 
 void listFilesMenu(){
   sd.chdir(); // change to root
-  readTestFile();
-
   printChipId();
   printDirectory(false);
 }
@@ -134,7 +131,7 @@ void serialSetTime(){
 
 void printDirectory(int deleteFile) {
   SdFile file;
-  char myFileName[40]; 
+  char myFileName[40];
   sd.vwd()->rewind(); 
   while (file.openNext(sd.vwd(), O_READ)) {
     if(!file.isDir()){
@@ -186,7 +183,7 @@ void downloadFiles(){
       SerialUSB.write(inByte);
       filename[index] = inByte;
       index++;
-      if(inByte == 'V' | inByte == 'X') break;
+      if(inByte == 'v' | inByte == 'V' | inByte == 'X') break;
     }
     if(millis() - startTime > 5000) break;
   }
