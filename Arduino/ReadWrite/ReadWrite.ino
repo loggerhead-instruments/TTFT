@@ -64,6 +64,7 @@ void setup()
     SysCall::yield();
   }
 
+  // This line causes error when trying to open file with SamD board version 1.8.3 and 1.6.21, 1.6.13, 1.6.10, 1.6.8, 
   byte inputVal = SerialUSB.read();
 
   // open the file. note that only one file can be open at a time,
