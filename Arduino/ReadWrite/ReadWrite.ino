@@ -54,6 +54,18 @@ void setup()
   }
   SerialUSB.println("initialization done.");
 
+    // Discard any input.
+  do {
+    delay(10);
+  } while (SerialUSB.available() && SerialUSB.read() >= 0);
+  
+  SerialUSB.println("Type any character to begin");
+  while (!SerialUSB.available()) {
+    SysCall::yield();
+  }
+
+  byte inputVal = SerialUSB.read();
+
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
   myFile = sd.open("test.txt", FILE_WRITE);
