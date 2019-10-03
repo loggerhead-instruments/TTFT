@@ -144,14 +144,6 @@ void setup() {
   SerialUSB.println("TTFT2");
   
 
-  pinMode(SDPOW, OUTPUT);
-  digitalWrite(SDPOW, HIGH); // turn on power to SD
-  // see if the card is present and can be initialized:
-  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
-    SerialUSB.println("SD failed");
-    flashLed(100);
-  }
-  SerialUSB.println("SD init");
   
   makeWavHeader();
   Wire.begin();
@@ -168,7 +160,7 @@ void setup() {
 //  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
   USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
 
-  updateTemp();  // get first temperature reading ready
+  // updateTemp();  // get first temperature reading ready
 
   fileInit();
   lis2SpiInit();
@@ -228,6 +220,15 @@ void sensorInit(){
 //  pinMode(DATAOUT, OUTPUT);
 //  pinMode(DATAIN, INPUT);
 
+  pinMode(SDPOW, OUTPUT);
+  digitalWrite(SDPOW, HIGH); // turn on power to SD
+  // see if the card is present and can be initialized:
+  if (!sd.begin(chipSelect, SPI_FULL_SPEED)) {
+    SerialUSB.println("SD failed");
+    flashLed(100);
+  }
+  SerialUSB.println("SD init");
+
   // Digital IO
   // SerialUSB.println("Turning green ledGreen on");
   digitalWrite(ledGreen, ledGreen_ON);
@@ -236,35 +237,35 @@ void sensorInit(){
   SerialUSB.print("Battery: ");
   SerialUSB.println(readVoltage());
 
-//  SPI.begin();
-//  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
-//  SerialUSB.println("SPI Started");
-//
-//  int testResponse = lis2SpiTestResponse();
-//  SerialUSB.print("Accelerometer:");
-//  if (testResponse != 67) {
-//      SerialUSB.println(testResponse);
-//      SerialUSB.println(" Not connected");
-//      flashLed(500);
-//  }
-//  else{
-//    SerialUSB.println(" connected");
-//  }
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
+  SerialUSB.println("SPI Started");
 
-  // Pressure sensor
-  if(pressInit()){
-    SerialUSB.print("MS5837 Pressure Detected: ");
-    updatePress();
-    delay(10);
-    readPress();
-    updateTemp();
-    delay(10);
-    readTemp();
-    calcPressTemp();
-    SerialUSB.print("Press (mBar): "); SerialUSB.print(pressure_mbar);
-    SerialUSB.print("  Depth: "); SerialUSB.print(depth);
-    SerialUSB.print("  Temp: "); SerialUSB.println(temperature);
+  int testResponse = lis2SpiTestResponse();
+  SerialUSB.print("Accelerometer:");
+  if (testResponse != 67) {
+      SerialUSB.println(testResponse);
+      SerialUSB.println(" Not connected");
+      flashLed(500);
   }
+  else{
+    SerialUSB.println(" connected");
+  }
+
+//  // Pressure sensor
+//  if(pressInit()){
+//    SerialUSB.print("MS5837 Pressure Detected: ");
+//    updatePress();
+//    delay(10);
+//    readPress();
+//    updateTemp();
+//    delay(10);
+//    readTemp();
+//    calcPressTemp();
+//    SerialUSB.print("Press (mBar): "); SerialUSB.print(pressure_mbar);
+//    SerialUSB.print("  Depth: "); SerialUSB.print(depth);
+//    SerialUSB.print("  Temp: "); SerialUSB.println(temperature);
+//  }
 
   digitalWrite(ledGreen, ledGreen_OFF);
 
