@@ -125,20 +125,6 @@ typedef struct hdrstruct {
 HdrStruct wav_hdr;
 
 void setup() {
-  
-  // looking at this forum because wake from interrupt not working
-  // https://forum.arduino.cc/index.php?topic=410699.0
-  // Set the XOSC32K to run in standby
-   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
-   
-   // Configure EIC to use GCLK1 which uses XOSC32K
-   // This has to be done after the first call to attachInterrupt()
-   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
-                       GCLK_CLKCTRL_GEN_GCLK1 |
-                       GCLK_CLKCTRL_CLKEN;
-
-  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
-  
   SerialUSB.begin(9600);
   delay(10000);  // long delay here to make easier to reprogram
   SerialUSB.println("TTFT2");
@@ -164,8 +150,20 @@ void setup() {
 
   fileInit();
   lis2SpiInit();
-  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);  // using low instead of falling, in case already low when go to sleep
+  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);
+  
+    // looking at this forum because wake from interrupt not working
+  // https://forum.arduino.cc/index.php?topic=410699.0
+  // Set the XOSC32K to run in standby
+   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
+   
+   // Configure EIC to use GCLK1 which uses XOSC32K
+   // This has to be done after the first call to attachInterrupt()
+   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
+                       GCLK_CLKCTRL_GEN_GCLK1 |
+                       GCLK_CLKCTRL_CLKEN;
 
+  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
 
 
@@ -197,7 +195,7 @@ void processBuf(){
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
     
- //   SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
+   // SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
   }
   digitalWrite(ledGreen, ledGreen_OFF);
 }
@@ -215,10 +213,12 @@ void sensorInit(){
   digitalWrite(chipSelectPinAccel, HIGH);
   pinMode(chipSelectMemory, OUTPUT);  // flash memory chip
   digitalWrite(chipSelectMemory, HIGH);
+  pinMode(chipSelect, OUTPUT);
+  digitalWrite(chipSelect, HIGH);
 
-//  pinMode(SPICLOCK, OUTPUT);
-//  pinMode(DATAOUT, OUTPUT);
-//  pinMode(DATAIN, INPUT);
+  pinMode(SPICLOCK, OUTPUT);
+  pinMode(DATAOUT, OUTPUT);
+  pinMode(DATAIN, INPUT);
 
   pinMode(SDPOW, OUTPUT);
   digitalWrite(SDPOW, HIGH); // turn on power to SD
@@ -230,7 +230,6 @@ void sensorInit(){
   SerialUSB.println("SD init");
 
   // Digital IO
-  // SerialUSB.println("Turning green ledGreen on");
   digitalWrite(ledGreen, ledGreen_ON);
 
   // battery voltage measurement
@@ -238,7 +237,7 @@ void sensorInit(){
   SerialUSB.println(readVoltage());
 
   SPI.begin();
-  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard, speeds higher than 1MHz fail
+  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); // with breadboard speeds higher than 1MHz fail
   SerialUSB.println("SPI Started");
 
   int testResponse = lis2SpiTestResponse();
