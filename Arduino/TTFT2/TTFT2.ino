@@ -327,7 +327,7 @@ void fileInit() {
   fileCount += 1;
   getTime(); // update time
   SdFile::dateTimeCallback(file_date_time);
-  sprintf(filename,"F%2d_%02d%02d%02dT%02d%02d%02d.wav",fileCount, year, month, day, hour, minute, second);
+  sprintf(filename,"F%04d_%02d%02d%02dT%02d%02d%02d.wav",fileCount, year, month, day, hour, minute, second);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
     fileCount += 1;

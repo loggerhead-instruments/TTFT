@@ -172,8 +172,8 @@ void downloadFiles(){
 //  SerialUSB.println("Enter Filename ");
 //  SerialUSB.flush();
   int inByte = 100;
-  char filename[15];
-  memset(filename, 0, 15);
+  char filename[40];
+  memset(filename, 0, 40);
   int index = 0;
   long startTime = millis();
 
