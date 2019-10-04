@@ -171,7 +171,7 @@ void loop() {
      getTime();
      if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
-     if(digitalRead(INT2)==1) system_sleep(); // look at the interrupt flag to decide whether to sleep; INT2 needs to be high before sleeping
+     if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
      
      // ... ASLEEP HERE...
   }
@@ -346,7 +346,6 @@ void watermark(){
 // set system into the sleep state 
 // system wakes up when interrupt detected
 void system_sleep() {
-  
 
   __WFI(); //Wait for interrupt
   //detachInterrupt(digitalPinToInterrupt(INT2));
