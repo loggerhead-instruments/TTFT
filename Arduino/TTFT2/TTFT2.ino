@@ -12,8 +12,6 @@
 
 
 // To Do:
-// - flash LED once every minute (check for RTC seconds = 0);
-
 
 // Optimizations (not critical):
 // - set file duration from menu
@@ -132,8 +130,6 @@ void setup() {
   delay(10000);  // long delay here to make easier to reprogram
   SerialUSB.println("TTFT2");
   
-
-  
   makeWavHeader();
   Wire.begin();
   Wire.setClock(400);  // set I2C clock to 400 kHz
@@ -172,21 +168,19 @@ void setup() {
 
 void loop() {
   while (bufsRec < bufsPerFile) {
+     getTime();
+     if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
-     //if(lis2SpiFifoStatus()==0) system_sleep();
-     if(lis2SpiFifoPts() * 3 < bufLength - 10) {  // maybe change this to looking at the interrupt flag to decide whether to sleep; INT2 needs to be high before sleeping
-      system_sleep();
-     }
+     if(digitalRead(INT2)==1) system_sleep(); // look at the interrupt flag to decide whether to sleep; INT2 needs to be high before sleeping
      
-     //system_sleep();
      // ... ASLEEP HERE...
   }
-  digitalWrite(ledGreen, HIGH);
+
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
   fileInit();
-  digitalWrite(ledGreen, LOW);
+
   // could write pressure/temperature here to log file
   
 }
@@ -293,7 +287,6 @@ void powerDown(){
 }
 
 void makeWavHeader(){
-  
   //intialize .wav file header
   sprintf(wav_hdr.rId,"RIFF");
   sprintf(wav_hdr.wId,"WAVE");
