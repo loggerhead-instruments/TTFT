@@ -178,12 +178,12 @@ void loop() {
      //system_sleep();
      // ... ASLEEP HERE...
   }
-  //digitalWrite(ledGreen, HIGH);
+  digitalWrite(ledGreen, HIGH);
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
   fileInit();
-
+  digitalWrite(ledGreen, LOW);
   // could write pressure/temperature here to log file
   
 }
