@@ -12,13 +12,16 @@
 
 
 // To Do:
-// - filenames based on date and time
+// - flash LED once every minute (check for RTC seconds = 0);
+
 
 // Optimizations (not critical):
+// - set file duration from menu
 // - to save power:
 //       + change unused pins to INPUTS
 //       + make a larger internal buffer so uSD writes are at least 512 bytes 
 // - have backup wake from RTC (in case accelerometer hiccup)?
+// - reset on WDT and check if write fail (would need bypass of startup menu on restart; maybe check if USB connected to enter menu)
 
 #include <Wire.h>
 #include <SPI.h>
