@@ -1,6 +1,6 @@
 // TTFT2
-// Board bootloader loaded using AtmelICE from Arudino IDE
-// Board programmed using USB via Arduino Zero Native USB port
+// Board bootloader loaded using AtmelICE from Arduino IDE
+// Board programmed using USB via Arduino Genuino Zero Native USB port using SAMD v 1.8.3
 
 // Note: SAMD variants.h needs to have the following lines changed, otherwise SD_POW will get switched off when read USB
 // C:\Users\dmann\AppData\Local\Arduino15\packages\arduino\hardware\samd\1.8.3\variants\arduino_zero\variant.h
@@ -42,7 +42,6 @@ uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minu
 //****************************************//
 
 #define CPU_HZ 48000000
-#define TIMER_PRESCALER_DIV 1024
 
 // Pin Assignments
 #define ledGreen A5
@@ -171,7 +170,8 @@ void loop() {
      getTime();
      if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
-     if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
+     // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152) - IF ALREADY LOW WHEN GOES TO SLEEP, WILL NOT WAKE
+     //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
      
      // ... ASLEEP HERE...
   }
