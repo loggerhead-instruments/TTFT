@@ -109,6 +109,9 @@ volatile byte year = 17;
 
 // Delayed start in seconds
 #define startDelay 180
+#define startHour 12 // start next 7 am east coast time
+#define startMin 00
+#define startSec 00
 
 typedef struct hdrstruct {
     char    rId[4];
@@ -159,8 +162,8 @@ void setup() {
 // STAY POWERED DOWN UNTIL WAKE UP TIME
  
   // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
-  rtc.setAlarmTime(0, 0, 30);
-  rtc.enableAlarm(rtc.MATCH_SS);
+  rtc.setAlarmTime(startHour, startMin, startSec);
+  rtc.enableAlarm(rtc.MATCH_HHMMSS);
   rtc.attachInterrupt(alarmMatch);
   
   // Store current time and use as reference
