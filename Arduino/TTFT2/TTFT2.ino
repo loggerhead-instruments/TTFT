@@ -20,6 +20,7 @@
 //       + make a larger internal buffer so uSD writes are at least 512 bytes 
 // - have backup wake from RTC (in case accelerometer hiccup)?
 // - reset on WDT and check if write fail (would need bypass of startup menu on restart; maybe check if USB connected to enter menu)
+// - delayed start
 
 #include <Wire.h>
 #include <SPI.h>
@@ -64,7 +65,7 @@ volatile int bufsRec = 0;
 
 byte toggleledGreen = 1;
 
-// when storing magnitude of acceleraton watermark threshold are represented by 1Lsb = 3 samples
+// when storing magnitude of acceleration watermark threshold are represented by 1Lsb = 3 samples
 #define FIFO_WATERMARK (0x80) // samples 0x0C=12 0x24=36; 0x2A=42; 0x80 = 128
 #define bufLength 384 // samples: 3x watermark
 int16_t accel[bufLength];
@@ -106,6 +107,9 @@ volatile byte year = 17;
 #define SECONDS_IN_YEAR 31536000
 #define SECONDS_IN_LEAP 31622400
 
+// Delayed start in seconds
+#define startDelay 60
+
 typedef struct hdrstruct {
     char    rId[4];
     uint32_t rLen;
@@ -128,21 +132,55 @@ void setup() {
   SerialUSB.begin(9600);
   delay(10000);  // long delay here to make easier to reprogram
   SerialUSB.println("TTFT2");
-  
+
+  // Create header info for wav files
   makeWavHeader();
+  
   Wire.begin();
   Wire.setClock(400);  // set I2C clock to 400 kHz
   rtc.begin();
   sensorInit();
   setupMenu();  
+
+  // Send final serial message, then turn off USB
   
   SerialUSB.println("Running"); 
   SerialUSB.println("USB disabled");
   SerialUSB.println("Ignore error");
   delay(500); // time to display
                   
-//  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
+  // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
   USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
+
+// STAY POWERED DOWN UNTIL WAKE UP TIME
+ 
+  // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
+  rtc.setAlarmTime(0, 0, 0);
+  rtc.enableAlarm(rtc.MATCH_SS);
+  rtc.attachInterrupt(alarmMatch);
+  
+  // Store current time and use as reference
+  getTime();
+  long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
+
+  // Delayed start sleep loop
+  uint32_t eTime = 0;
+  while(eTime<startDelay) {
+    // Sleep for another 8s watchdog timer run
+    system_sleep();
+
+    // Intermittent led
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(100);
+    digitalWrite(ledGreen, ledGreen_OFF);
+    
+    // Update time and check if we are good
+    getTime();
+    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
+  }
+  rtc.detachInterrupt();
+
+// NOW ACTIVATE EVERYTHING
 
   // updateTemp();  // get first temperature reading ready
 
@@ -150,7 +188,7 @@ void setup() {
   lis2SpiInit();
   attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);
   
-    // looking at this forum because wake from interrupt not working
+  // looking at this forum because wake from interrupt not working
   // https://forum.arduino.cc/index.php?topic=410699.0
   // Set the XOSC32K to run in standby
    SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
@@ -163,6 +201,7 @@ void setup() {
 
   SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
+
 
 
 void loop() {
@@ -315,6 +354,14 @@ void flashLed(int interval) {
     delay(interval);
     digitalWrite(ledGreen, ledGreen_OFF);
     delay(interval);
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(interval);
+    digitalWrite(ledGreen, ledGreen_OFF);
+    delay(interval);
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(interval);
+    digitalWrite(ledGreen, ledGreen_OFF);
+    delay(10*interval);
   }
 }
 
@@ -356,4 +403,8 @@ void file_date_time(uint16_t* date, uint16_t* time)
 {
     *date=FAT_DATE(year,month,day);
     *time=FAT_TIME(hour,minute,second);
+}
+
+void alarmMatch(){
+  // just wake up tag
 }
