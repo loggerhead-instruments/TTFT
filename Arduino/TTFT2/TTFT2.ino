@@ -108,7 +108,7 @@ volatile byte year = 17;
 #define SECONDS_IN_LEAP 31622400
 
 // Delayed start in seconds
-#define startDelay 60
+#define startDelay 180
 
 typedef struct hdrstruct {
     char    rId[4];
@@ -130,6 +130,10 @@ HdrStruct wav_hdr;
 
 void setup() {
   SerialUSB.begin(9600);
+  digitalWrite(ledGreen, ledGreen_ON);
+  delay(1000);
+  digitalWrite(ledGreen, ledGreen_OFF);
+    
   delay(10000);  // long delay here to make easier to reprogram
   SerialUSB.println("TTFT2");
 
@@ -155,7 +159,7 @@ void setup() {
 // STAY POWERED DOWN UNTIL WAKE UP TIME
  
   // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
-  rtc.setAlarmTime(0, 0, 0);
+  rtc.setAlarmTime(0, 0, 30);
   rtc.enableAlarm(rtc.MATCH_SS);
   rtc.attachInterrupt(alarmMatch);
   
@@ -166,8 +170,9 @@ void setup() {
   // Delayed start sleep loop
   uint32_t eTime = 0;
   while(eTime<startDelay) {
-    // Sleep for another 8s watchdog timer run
-    system_sleep();
+    // Sleep until next interrupt
+    //system_sleep(); // this did not work!
+    LowPower.standby(); // trying lowpower standby instead
 
     // Intermittent led
     digitalWrite(ledGreen, ledGreen_ON);
@@ -370,7 +375,8 @@ void fileInit() {
   fileCount += 1;
   getTime(); // update time
   SdFile::dateTimeCallback(file_date_time);
-  sprintf(filename,"F%04d_%02d%02d%02dT%02d%02d%02d.wav",fileCount, year, month, day, hour, minute, second);
+  uint16_t ms = millis() % 1000; // store also (potentially inaccurate) ms info
+  sprintf(filename,"F%04d_%02d-%02d-%02d_T%02d-%02d-%02d_%03d.wav",fileCount, year, month, day, hour, minute, second, ms);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
     fileCount += 1;
