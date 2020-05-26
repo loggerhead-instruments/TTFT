@@ -40,6 +40,15 @@ uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minu
 // If 3 channel recording defined will store raw 3 axes data
 // Otherwise will store magnitude of 3 channels
 #define CHAN3
+
+// desired slope threshold (A(t)-A(t-1)) 19 mg for 5 blocks of 16 samples
+#define DET_THRESHOLD 311 // Detection threshold - 19[mg]/0.061 [mg/sample]
+#define DET_CRIT 5        // Critical number of detected blocks
+#define DET_BLOCK 16      // Number of accelerometer samples per block
+boolean call = 0;
+#define LED_HOLD 5;       // Keep LED activated for this many ACC buffers
+int post_call_blocks = 0; // variable for counting ACC buffers
+boolean turn_off;
 //****************************************//
 
 #define CPU_HZ 48000000
@@ -239,9 +248,73 @@ void processBuf(){
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
     
-   // SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
+    // SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
+
+    // Check if LED is still on from previous call
+    if (!call) {
+      // Check for calls and activate LED if call is found
+      detectvocs();
+      if (call) digitalWrite(ledGreen, ledGreen_ON);
+    } else {
+    // If LED is still on, track when to turn off 
+    
+      // Count an extra block
+      post_call_blocks++;
+      turn_off = post_call_blocks>LED_HOLD;
+      // If we have spent enough acc buffers with LED on, reset LED
+      if (turn_off) {
+        call = 0;
+        post_call_blocks = 0;
+        digitalWrite(ledGreen, ledGreen_OFF);
+      }
+    }
   }
-  digitalWrite(ledGreen, ledGreen_OFF);
+  if(introPeriod) digitalWrite(ledGreen, ledGreen_OFF);
+}
+
+
+
+void detectvocs() {
+  // default is no calls
+  call = 0;
+  
+  // Create variables for detector
+  int dt = 0; 
+  int sample = 1; // 
+  int max_sample = bufLength/3-1; // Can be defined
+  boolean blockdone = 0;
+  int blockrem = 0;
+
+  // Create variables for differencing (can be done as part of acc settings)
+  int16_t cur = accel[0];
+  int16_t next = accel[0];
+
+  // Go through sequence
+  while (sample<max_sample, sample++) {
+    // Update value
+    cur = accel[(sample-1)*3];     // grab value
+    next = accel[(sample)*3];
+    blockrem = sample%DET_BLOCK; // calculate how far from new block
+
+    if ( blockrem == 0) {
+      blockdone=0; // initialize new block
+    }
+    
+    // check if detected
+    if (blockdone==0) {
+      if (abs(next-cur)>DET_THRESHOLD) {
+        dt++;
+        blockdone=1;
+      }
+    }
+    // then move to next sample
+  }
+
+  if (dt>DET_CRIT) {
+    // Found a call!
+    call = 1;
+  }
+  
 }
 
 void sensorInit(){
@@ -389,9 +462,6 @@ void fileInit() {
   dataFile.write((uint8_t *)&wav_hdr, 44);
 }
 
-void doubleTap(){
-  // do nothing just wake up
-}
 
 void watermark(){
   // wake up
