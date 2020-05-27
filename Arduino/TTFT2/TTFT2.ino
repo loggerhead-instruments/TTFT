@@ -43,12 +43,13 @@ uint32_t bufsPerFile = 750; // each buffer is 0.08 seconds; 750 buffers = 1 minu
 
 // desired slope threshold (A(t)-A(t-1)) 19 mg for 5 blocks of 16 samples
 #define DET_THRESHOLD 311 // Detection threshold - 19[mg]/0.061 [mg/sample]
-#define DET_CRIT 5        // Critical number of detected blocks
+#define DET_CRIT 6        // Critical number of detected blocks
 #define DET_BLOCK 16      // Number of accelerometer samples per block
 boolean call = 0;
-#define LED_HOLD 5;       // Keep LED activated for this many ACC buffers
+#define LED_HOLD 10;       // Keep LED activated for this many ACC buffers
 int post_call_blocks = 0; // variable for counting ACC buffers
 boolean turn_off;
+uint32_t eT;
 //****************************************//
 
 #define CPU_HZ 48000000
@@ -170,53 +171,67 @@ void setup() {
 
 // STAY POWERED DOWN UNTIL WAKE UP TIME
  
-  // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
-  rtc.setAlarmTime(startHour, startMin, startSec);
-  rtc.enableAlarm(rtc.MATCH_HHMMSS);
-  rtc.attachInterrupt(alarmMatch);
-  
-  // Store current time and use as reference
-  getTime();
-  long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
-
-  // Delayed start sleep loop
-  uint32_t eTime = 0;
-  while(eTime<startDelay) {
-    // Sleep until next interrupt
-    //system_sleep(); // this did not work!
-    LowPower.standby(); // trying lowpower standby instead
-
-    // Intermittent led
-    digitalWrite(ledGreen, ledGreen_ON);
-    delay(100);
-    digitalWrite(ledGreen, ledGreen_OFF);
-    
-    // Update time and check if we are good
-    getTime();
-    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
-  }
-  rtc.detachInterrupt();
+//  // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
+//  rtc.setAlarmTime(startHour, startMin, startSec);
+//  rtc.enableAlarm(rtc.MATCH_HHMMSS);
+//  rtc.attachInterrupt(alarmMatch);
+//  
+//  // Store current time and use as reference
+//  getTime();
+//  long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
+//
+//  // Delayed start sleep loop
+//  uint32_t eTime = 0;
+//  while(eTime<startDelay) {
+//    // Sleep until next interrupt
+//    //system_sleep(); // this did not work!
+//    LowPower.standby(); // trying lowpower standby instead
+//
+//    // Intermittent led
+//    digitalWrite(ledGreen, ledGreen_ON);
+//    delay(100);
+//    digitalWrite(ledGreen, ledGreen_OFF);
+//    
+//    // Update time and check if we are good
+//    getTime();
+//    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
+//  }
+//  rtc.detachInterrupt();
 
 // NOW ACTIVATE EVERYTHING
 
   // updateTemp();  // get first temperature reading ready
 
+  digitalWrite(ledGreen, ledGreen_ON);
+  delay(200);
+  digitalWrite(ledGreen, ledGreen_OFF);
+  delay(200);
+  digitalWrite(ledGreen, ledGreen_ON);
+  delay(200);
+  digitalWrite(ledGreen, ledGreen_OFF);
+  delay(200);
+  digitalWrite(ledGreen, ledGreen_ON);
+  delay(200);
+  digitalWrite(ledGreen, ledGreen_OFF);
+  
   fileInit();
   lis2SpiInit();
-  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING);
-  
-  // looking at this forum because wake from interrupt not working
-  // https://forum.arduino.cc/index.php?topic=410699.0
-  // Set the XOSC32K to run in standby
-   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
-   
-   // Configure EIC to use GCLK1 which uses XOSC32K
-   // This has to be done after the first call to attachInterrupt()
-   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
-                       GCLK_CLKCTRL_GEN_GCLK1 |
-                       GCLK_CLKCTRL_CLKEN;
 
-  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+//  Sleep mode still doesn't work
+//  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
+//  
+//  // looking at this forum because wake from interrupt not working
+//  // https://forum.arduino.cc/index.php?topic=410699.0
+//  // Set the XOSC32K to run in standby
+//   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
+//   
+//   // Configure EIC to use GCLK1 which uses XOSC32K
+//   // This has to be done after the first call to attachInterrupt()
+//   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
+//                       GCLK_CLKCTRL_GEN_GCLK1 |
+//                       GCLK_CLKCTRL_CLKEN;
+//
+//  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
 
 
@@ -224,12 +239,14 @@ void setup() {
 void loop() {
   while (bufsRec < bufsPerFile) {
      getTime();
-     if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
+     //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
-     // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152) - IF ALREADY LOW WHEN GOES TO SLEEP, WILL NOT WAKE
+    
+     // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152)
      //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
-     
-     // ... ASLEEP HERE...
+      
+     //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_OFF); 
+     // ... NOT ASLEEP ...
   }
 
   introPeriod = 0;
@@ -243,36 +260,55 @@ void loop() {
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-   if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
+   //if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
+    uint32_t eTime = millis();
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
-    
-    // SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
 
-    // Check if LED is still on from previous call
-    if (!call) {
-      // Check for calls and activate LED if call is found
-      detectvocs();
-      if (call) digitalWrite(ledGreen, ledGreen_ON);
-    } else {
-    // If LED is still on, track when to turn off 
+    //SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
     
-      // Count an extra block
-      post_call_blocks++;
-      turn_off = post_call_blocks>LED_HOLD;
-      // If we have spent enough acc buffers with LED on, reset LED
-      if (turn_off) {
-        call = 0;
-        post_call_blocks = 0;
-        digitalWrite(ledGreen, ledGreen_OFF);
-      }
-    }
+    //uint32_t eTime = millis();
+    checkvocs();
+    //eTime = millis()-eTime;
+    //Event detector takes ~1ms << 80ms acc buffer
+    //SerialUSB.print(" Time to run event detector: ");
+    //SerialUSB.println(eTime);
   }
-  if(introPeriod) digitalWrite(ledGreen, ledGreen_OFF);
+  //if(introPeriod) digitalWrite(ledGreen, ledGreen_OFF);
 }
 
-
+void checkvocs() {
+  // Check if LED is still on from previous call
+  if (call) {
+    // If call was recently detected, track when to turn LED off 
+    digitalWrite(ledGreen, ledGreen_ON); 
+    
+    // Count an extra block
+    post_call_blocks++;
+    turn_off = post_call_blocks>LED_HOLD;
+    // If we have spent enough acc buffers with LED on, reset LED
+    if (turn_off) {
+      call = 0;
+      post_call_blocks = 0;
+      digitalWrite(ledGreen, ledGreen_OFF);
+      // debugging
+      //SerialUSB.println(" Turning off LED ");
+      //eT = millis()-eT;
+      //SerialUSB.println(" Time with LED on: ");
+      //SerialUSB.println(eT);
+    }
+  }
+  else {
+    // Check for calls and activate LED if call is found
+    detectvocs();
+    if (call) {
+      digitalWrite(ledGreen, ledGreen_ON); 
+      //SerialUSB.println(" Turning LED on");
+      eT = millis();
+    }
+  }
+}
 
 void detectvocs() {
   // default is no calls
@@ -290,29 +326,42 @@ void detectvocs() {
   int16_t next = accel[0];
 
   // Go through sequence
-  while (sample<max_sample, sample++) {
+  while (sample<max_sample) {
     // Update value
     cur = accel[(sample-1)*3];     // grab value
     next = accel[(sample)*3];
     blockrem = sample%DET_BLOCK; // calculate how far from new block
+    
+
 
     if ( blockrem == 0) {
       blockdone=0; // initialize new block
+      //SerialUSB.print("Sample ");
+      //SerialUSB.print(sample); 
+      //SerialUSB.println("New Block ");
     }
     
     // check if detected
     if (blockdone==0) {
       if (abs(next-cur)>DET_THRESHOLD) {
+//        SerialUSB.print("Sample ");
+//        SerialUSB.print(sample); 
+//        SerialUSB.print(" value ");
+//        SerialUSB.print(next); 
+//        SerialUSB.print(" diff ");
+//        SerialUSB.println(abs(next-cur)); 
         dt++;
         blockdone=1;
       }
     }
     // then move to next sample
+    sample++;
   }
-
+ 
   if (dt>DET_CRIT) {
     // Found a call!
     call = 1;
+    SerialUSB.println("Call detected!"); // debugging
   }
   
 }
@@ -451,7 +500,7 @@ void fileInit() {
   fileCount += 1;
   getTime(); // update time
   SdFile::dateTimeCallback(file_date_time);
-  uint16_t ms = millis() % 1000; // store also (potentially inaccurate) ms info
+  uint32_t ms = millis() % 1000; // store also (potentially inaccurate) ms info
   sprintf(filename,"F%04d_%02d-%02d-%02d_T%02d-%02d-%02d_%03d.wav",fileCount, year, month, day, hour, minute, second, ms);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
