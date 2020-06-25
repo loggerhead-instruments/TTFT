@@ -106,7 +106,7 @@ RTCZero rtc;
 /* Change these values to set the current initial time and date */
 volatile byte second = 0;
 volatile byte minute = 0;
-volatile byte hour = 17;
+volatile byte hour = 15;
 volatile byte day = 1;
 volatile byte month = 1;
 volatile byte year = 17;
@@ -118,8 +118,9 @@ volatile byte year = 17;
 #define SECONDS_IN_LEAP 31622400
 
 // Delayed start in seconds
-#define startDelay 180
-#define startHour 12 // start next 7 am east coast time
+#define startDelay 60
+//#define startHour 13 // start next 9 am east coast time
+#define startHour 15 // start next 11 am east coast time
 #define startMin 00
 #define startSec 00
 
@@ -152,7 +153,8 @@ void setup() {
 
   // Create header info for wav files
   makeWavHeader();
-  
+
+  // Communicate with iTag terminal
   Wire.begin();
   Wire.setClock(400);  // set I2C clock to 400 kHz
   rtc.begin();
@@ -170,68 +172,74 @@ void setup() {
   USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
 
 // STAY POWERED DOWN UNTIL WAKE UP TIME
+
+// Flash LED a few times after deploying
+  for(int i=0; i<3; i++) {
+    delay(400);
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(600);
+    digitalWrite(ledGreen, ledGreen_OFF);
+  }
  
-//  // initialize RTC alarm - this is crude, just using rtc instead of a delay() function but should use to compare to exact time we want to wake up!
-//  rtc.setAlarmTime(startHour, startMin, startSec);
-//  rtc.enableAlarm(rtc.MATCH_HHMMSS);
-//  rtc.attachInterrupt(alarmMatch);
-//  
-//  // Store current time and use as reference
-//  getTime();
-//  long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
-//
-//  // Delayed start sleep loop
-//  uint32_t eTime = 0;
-//  while(eTime<startDelay) {
-//    // Sleep until next interrupt
-//    //system_sleep(); // this did not work!
-//    LowPower.standby(); // trying lowpower standby instead
-//
-//    // Intermittent led
-//    digitalWrite(ledGreen, ledGreen_ON);
-//    delay(100);
-//    digitalWrite(ledGreen, ledGreen_OFF);
-//    
-//    // Update time and check if we are good
-//    getTime();
-//    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
-//  }
-//  rtc.detachInterrupt();
+  // initialize RTC alarm
+  rtc.setAlarmTime(startHour, startMin, startSec);
+  rtc.enableAlarm(rtc.MATCH_HHMMSS);
+  rtc.attachInterrupt(alarmMatch);
+  
+  // Store current time and use as reference
+  getTime();
+  long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
+
+  // Delayed start sleep loop - wakes up on RTC alarm provided elapsed time exceeds minimum startDelay
+  // Can be simplified to just operate with LowPower.standby and include yy-mm-dd in alarm match
+  uint32_t eTime = 0;
+  while(eTime<startDelay) {
+    // Sleep until next interrupt
+    //system_sleep(); // this did not work!
+    LowPower.standby(); // lowpower standby works - wake up next time RTC alarm triggers
+
+    // Single led when RTC triggers
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(200);
+    digitalWrite(ledGreen, ledGreen_OFF);
+    
+    // Update time and check if we are good
+    getTime();
+    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
+  }
+  rtc.detachInterrupt();
+
+
+// Flash LED for first minute when recording is started
+  for(int i=0; i<59; i++) {
+    delay(400);
+    digitalWrite(ledGreen, ledGreen_ON);
+    delay(600);
+    digitalWrite(ledGreen, ledGreen_OFF);
+  }
+
 
 // NOW ACTIVATE EVERYTHING
-
-  // updateTemp();  // get first temperature reading ready
-
-  digitalWrite(ledGreen, ledGreen_ON);
-  delay(200);
-  digitalWrite(ledGreen, ledGreen_OFF);
-  delay(200);
-  digitalWrite(ledGreen, ledGreen_ON);
-  delay(200);
-  digitalWrite(ledGreen, ledGreen_OFF);
-  delay(200);
-  digitalWrite(ledGreen, ledGreen_ON);
-  delay(200);
-  digitalWrite(ledGreen, ledGreen_OFF);
   
+  updateTemp();  // get first temperature reading ready
   fileInit();
   lis2SpiInit();
 
-//  Sleep mode still doesn't work
-//  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
-//  
-//  // looking at this forum because wake from interrupt not working
-//  // https://forum.arduino.cc/index.php?topic=410699.0
-//  // Set the XOSC32K to run in standby
-//   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
-//   
-//   // Configure EIC to use GCLK1 which uses XOSC32K
-//   // This has to be done after the first call to attachInterrupt()
-//   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
-//                       GCLK_CLKCTRL_GEN_GCLK1 |
-//                       GCLK_CLKCTRL_CLKEN;
-//
-//  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+//  Configure sleep mode and interrupt. Both attachinterrupt and subsequent parts are needed for interrupt to work
+  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
+  
+  // looking at this forum because wake from interrupt not working
+  // https://forum.arduino.cc/index.php?topic=410699.0
+  // Set the XOSC32K to run in standby
+   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
+   
+   // Configure EIC to use GCLK1 which uses XOSC32K
+   // This has to be done after the first call to attachInterrupt()
+   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
+                       GCLK_CLKCTRL_GEN_GCLK1 |
+                       GCLK_CLKCTRL_CLKEN;
+
+  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
 
 
@@ -241,6 +249,9 @@ void loop() {
      getTime();
      //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
+
+     // Sleep with interrupt seems to work with this. Will it hang eventually? Need to test long
+     LowPower.standby();
     
      // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152)
      //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
