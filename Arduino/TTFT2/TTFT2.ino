@@ -159,7 +159,7 @@ void setup() {
   Wire.setClock(400);  // set I2C clock to 400 kHz
   rtc.begin();
   sensorInit();
-  setupMenu();  
+ // setupMenu();  
 
   // Send final serial message, then turn off USB
   
@@ -169,7 +169,7 @@ void setup() {
   delay(500); // time to display
                   
   // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
-  USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
+ // USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
 
 // STAY POWERED DOWN UNTIL WAKE UP TIME
 
@@ -181,85 +181,64 @@ void setup() {
     digitalWrite(ledGreen, ledGreen_OFF);
   }
  
-  // initialize RTC alarm
-  rtc.setAlarmTime(startHour, startMin, startSec);
-  rtc.enableAlarm(rtc.MATCH_HHMMSS);
-  rtc.attachInterrupt(alarmMatch);
-  
+//  // initialize RTC alarm
+//  rtc.setAlarmTime(startHour, startMin, startSec);
+//  rtc.enableAlarm(rtc.MATCH_HHMMSS);
+//  rtc.attachInterrupt(alarmMatch);
+//  
   // Store current time and use as reference
   getTime();
   long startTime = RTCToUNIXTime(year, month, day, hour, minute, second);
 
-  // Delayed start sleep loop - wakes up on RTC alarm provided elapsed time exceeds minimum startDelay
-  // Can be simplified to just operate with LowPower.standby and include yy-mm-dd in alarm match
-  uint32_t eTime = 0;
-  while(eTime<startDelay) {
-    // Sleep until next interrupt
-    //system_sleep(); // this did not work!
-    LowPower.standby(); // lowpower standby works - wake up next time RTC alarm triggers
-
-    // Single led when RTC triggers
-    digitalWrite(ledGreen, ledGreen_ON);
-    delay(200);
-    digitalWrite(ledGreen, ledGreen_OFF);
-    
-    // Update time and check if we are good
-    getTime();
-    eTime = RTCToUNIXTime(year, month, day, hour, minute, second) - startTime;
-  }
-  rtc.detachInterrupt();
-
-
-// Flash LED for first minute when recording is started
-  for(int i=0; i<59; i++) {
-    delay(400);
-    digitalWrite(ledGreen, ledGreen_ON);
-    delay(600);
-    digitalWrite(ledGreen, ledGreen_OFF);
-  }
-
-
 // NOW ACTIVATE EVERYTHING
   
-  updateTemp();  // get first temperature reading ready
+ // updateTemp();  // get first temperature reading ready
   fileInit();
   lis2SpiInit();
 
+  // Configure the regulator to run in normal mode when in standby mode
+  // Otherwise it defaults to low power mode and can only supply 50 uA
+  SYSCTRL->VREG.bit.RUNSTDBY = 1;
+
+  // Enable the DFLL48M clock in standby mode
+  SYSCTRL->DFLLCTRL.bit.RUNSTDBY = 1;
+
+
 //  Configure sleep mode and interrupt. Both attachinterrupt and subsequent parts are needed for interrupt to work
   attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
-  
-  // looking at this forum because wake from interrupt not working
-  // https://forum.arduino.cc/index.php?topic=410699.0
-  // Set the XOSC32K to run in standby
-   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
-   
-   // Configure EIC to use GCLK1 which uses XOSC32K
-   // This has to be done after the first call to attachInterrupt()
-   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
-                       GCLK_CLKCTRL_GEN_GCLK1 |
-                       GCLK_CLKCTRL_CLKEN;
 
-  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+  
+//    // looking at this forum because wake from interrupt not working
+//  // https://forum.arduino.cc/index.php?topic=410699.0
+//  // Set the XOSC32K to run in standby
+//   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
+//   
+//   // Configure EIC to use GCLK1 which uses XOSC32K
+//   // This has to be done after the first call to attachInterrupt()
+//   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
+//                       GCLK_CLKCTRL_GEN_GCLK1 |
+//                       GCLK_CLKCTRL_CLKEN;
+//
+//  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 }
 
 
 
 void loop() {
   while (bufsRec < bufsPerFile) {
-     getTime();
      //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
 
      // Sleep with interrupt seems to work with this. Will it hang eventually? Need to test long
-     LowPower.standby();
+    //  LowPower.standby();
     
      // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152)
-     //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
-      
-     //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_OFF); 
+     digitalWrite(ledGreen, ledGreen_ON);
+     if(digitalRead(INT2)==1 & lis2SpiFifoPts()<100) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
+     digitalWrite(ledGreen, ledGreen_OFF);
      // ... NOT ASLEEP ...
   }
-
+  getTime();
   introPeriod = 0;
   bufsRec = 0;
   dataFile.close();
@@ -271,7 +250,6 @@ void loop() {
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-   //if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
     uint32_t eTime = millis();
     lis2SpiFifoRead(bufLength);  //samples to read
@@ -280,13 +258,12 @@ void processBuf(){
     //SerialUSB.println(accel[0]);  // for debugging, look at one accelerometer value per buffer
     
     //uint32_t eTime = millis();
-    checkvocs();
+   // checkvocs();
     //eTime = millis()-eTime;
     //Event detector takes ~1ms << 80ms acc buffer
     //SerialUSB.print(" Time to run event detector: ");
     //SerialUSB.println(eTime);
   }
-  //if(introPeriod) digitalWrite(ledGreen, ledGreen_OFF);
 }
 
 void checkvocs() {
