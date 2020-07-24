@@ -13,6 +13,11 @@
 
 // To Do:
 
+// Improvements
+// Duty cycle using multiple time-date vectors
+// Configure programmed start and duty cycling through iTag terminal
+
+
 // Optimizations (not critical):
 // - set file duration from menu
 // - to save power:
@@ -20,7 +25,7 @@
 //       + make a larger internal buffer so uSD writes are at least 512 bytes 
 // - have backup wake from RTC (in case accelerometer hiccup)?
 // - reset on WDT and check if write fail (would need bypass of startup menu on restart; maybe check if USB connected to enter menu)
-// - delayed start
+// - brownout protection - if system reset (somehow), need to remember real time clock (?)
 
 #include <Wire.h>
 #include <SPI.h>
@@ -106,10 +111,11 @@ RTCZero rtc;
 /* Change these values to set the current initial time and date */
 volatile byte second = 0;
 volatile byte minute = 0;
-volatile byte hour = 15;
+volatile byte hour = 13;
 volatile byte day = 1;
 volatile byte month = 1;
 volatile byte year = 17;
+uint32_t millis_start = 0;
 
 #define SECONDS_IN_MINUTE 60
 #define SECONDS_IN_HOUR 3600
@@ -120,7 +126,7 @@ volatile byte year = 17;
 // Delayed start in seconds
 #define startDelay 60
 //#define startHour 13 // start next 9 am east coast time
-#define startHour 15 // start next 11 am east coast time
+#define startHour 15 // start next 8 am east coast time
 #define startMin 00
 #define startSec 00
 
@@ -222,58 +228,50 @@ void setup() {
 // NOW ACTIVATE EVERYTHING
   
   updateTemp();  // get first temperature reading ready
+  millis_start = millis() ; // Log start time in ms - used to construct file name
   fileInit();
   lis2SpiInit();
 
-//  Configure sleep mode and interrupt. Both attachinterrupt and subsequent parts are needed for interrupt to work
-  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
-  
-  // looking at this forum because wake from interrupt not working
-  // https://forum.arduino.cc/index.php?topic=410699.0
-  // Set the XOSC32K to run in standby
-   SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;
-   
-   // Configure EIC to use GCLK1 which uses XOSC32K
-   // This has to be done after the first call to attachInterrupt()
-   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) |
-                       GCLK_CLKCTRL_GEN_GCLK1 |
-                       GCLK_CLKCTRL_CLKEN;
 
-  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+// CONFIGURE MPU SLEEP BETWEEN ACC READS
+
+  // Configure the regulator to run in normal mode when in standby mode
+  // Otherwise it defaults to low power mode and can only supply 50 uA
+  SYSCTRL->VREG.bit.RUNSTDBY = 1;
+
+  // Enable the DFLL48M clock in standby mode
+  SYSCTRL->DFLLCTRL.bit.RUNSTDBY = 1;
+
+  //  Configure sleep mode and interrupt. Both attachinterrupt and subsequent parts are needed for interrupt to work
+  attachInterrupt(digitalPinToInterrupt(INT2), watermark, FALLING); 
 }
 
 
 
 void loop() {
   while (bufsRec < bufsPerFile) {
-     getTime();
-     //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_ON); // flash LED on every minute
+    // Process buffer
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
 
-     // Sleep with interrupt seems to work with this. Will it hang eventually? Need to test long
-     LowPower.standby();
-    
-     // SLEEP MODE DOES NOT WORK RIGHT NOW - INTERRUPT DOES NOT WAKE (line 152)
-     //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<40) system_sleep(); // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
-      
-     //if(second==0 | second==1) digitalWrite(ledGreen, ledGreen_OFF); 
-     // ... NOT ASLEEP ...
+     // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
+     if(digitalRead(INT2)==1 & lis2SpiFifoPts()<100 & bufsRec<bufsPerFile) system_sleep(); 
+     // ... Sleeping until ACC buffer is full ...  
   }
 
+  // Close data file
+  dataFile.close();
+
+  // Check duty cycling schedule here
+  
   introPeriod = 0;
   bufsRec = 0;
-  dataFile.close();
   fileInit();
-
-  // could write pressure/temperature here to log file
-  
 }
 
 void processBuf(){
   while((lis2SpiFifoPts() * 3 > bufLength)){
-   //if(introPeriod) digitalWrite(ledGreen, ledGreen_ON);
     bufsRec++;
-    uint32_t eTime = millis();
+    //uint32_t eTime = millis();
     lis2SpiFifoRead(bufLength);  //samples to read
     dataFile.write(&accel, bufLength*2);
 
@@ -282,11 +280,10 @@ void processBuf(){
     //uint32_t eTime = millis();
     checkvocs();
     //eTime = millis()-eTime;
-    //Event detector takes ~1ms << 80ms acc buffer
     //SerialUSB.print(" Time to run event detector: ");
     //SerialUSB.println(eTime);
+    //Event detector takes ~1ms << 80ms acc buffer
   }
-  //if(introPeriod) digitalWrite(ledGreen, ledGreen_OFF);
 }
 
 void checkvocs() {
@@ -298,6 +295,7 @@ void checkvocs() {
     // Count an extra block
     post_call_blocks++;
     turn_off = post_call_blocks>LED_HOLD;
+    
     // If we have spent enough acc buffers with LED on, reset LED
     if (turn_off) {
       call = 0;
@@ -316,7 +314,7 @@ void checkvocs() {
     if (call) {
       digitalWrite(ledGreen, ledGreen_ON); 
       //SerialUSB.println(" Turning LED on");
-      eT = millis();
+      //eT = millis();
     }
   }
 }
@@ -342,8 +340,6 @@ void detectvocs() {
     cur = accel[(sample-1)*3];     // grab value
     next = accel[(sample)*3];
     blockrem = sample%DET_BLOCK; // calculate how far from new block
-    
-
 
     if ( blockrem == 0) {
       blockdone=0; // initialize new block
@@ -372,7 +368,7 @@ void detectvocs() {
   if (dt>DET_CRIT) {
     // Found a call!
     call = 1;
-    SerialUSB.println("Call detected!"); // debugging
+    //SerialUSB.println("Call detected!"); // debugging
   }
   
 }
@@ -507,11 +503,13 @@ void flashLed(int interval) {
 }
 
 void fileInit() {
+  uint32_t ms = (millis() - millis_start)% 1000 ; // store also (potentially inaccurate) ms info
+
   char filename[40]; 
   fileCount += 1;
   getTime(); // update time
   SdFile::dateTimeCallback(file_date_time);
-  uint32_t ms = millis() % 1000; // store also (potentially inaccurate) ms info
+  
   sprintf(filename,"F%04d_%02d-%02d-%02d_T%02d-%02d-%02d_%03d.wav",fileCount, year, month, day, hour, minute, second, ms);
   dataFile = sd.open(filename, O_WRITE | O_CREAT | O_EXCL);
   while (!dataFile){
