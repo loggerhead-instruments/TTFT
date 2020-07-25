@@ -169,7 +169,7 @@ void setup() {
   delay(500); // time to display
                   
   // Turn off USB (so pins don't corrode in seawater; and it doesn't trigger interrupts)
- // USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
+  USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
 
 // STAY POWERED DOWN UNTIL WAKE UP TIME
 
