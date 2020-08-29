@@ -126,7 +126,7 @@ uint32_t millis_start = 0;
 // Delayed start in seconds
 #define startDelay 60
 //#define startHour 13 // start next 9 am east coast time
-#define startHour 15 // start next 8 am east coast time
+#define startHour 12 // start next 8 am east coast time
 #define startMin 00
 #define startSec 00
 
@@ -254,7 +254,7 @@ void loop() {
      processBuf(); // process buffer first to empty FIFO so don't miss watermark
 
      // look at the interrupt flag and mostly empty FIFO to decide whether to sleep; INT2 needs to be high before sleeping
-     if(digitalRead(INT2)==1 & lis2SpiFifoPts()<100 & bufsRec<bufsPerFile) system_sleep(); 
+     //if(digitalRead(INT2)==1 & lis2SpiFifoPts()<100 & bufsRec<bufsPerFile) system_sleep(); 
      // ... Sleeping until ACC buffer is full ...  
   }
 
